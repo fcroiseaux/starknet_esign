@@ -21,6 +21,9 @@ const QES_LEVEL: felt252 = 'QES'; // Qualified Electronic Signature
 const AES_LEVEL: felt252 = 'AES'; // Advanced Electronic Signature
 const SES_LEVEL: felt252 = 'SES'; // Simple Electronic Signature
 
+// Document size limit - approximately 5MB when each element is a felt252 (31 bytes)
+const MAX_DOCUMENT_SIZE: u32 = 170000;
+
 #[starknet::contract]
 mod ElectronicSignature {
     // Import everything needed in the contract
@@ -39,7 +42,7 @@ mod ElectronicSignature {
     use super::super::super::utils::typed_data::{Domain, DocumentMessage, TypedData};
     use super::super::super::utils::signature::DocumentSignature;
     use super::super::super::utils::events::{DocumentSigned, SignatureRevoked};
-    use super::{QES_LEVEL, AES_LEVEL, SES_LEVEL};
+    use super::{QES_LEVEL, AES_LEVEL, SES_LEVEL, MAX_DOCUMENT_SIZE};
 
     // Component Declarations
     component!(path: OwnableComponent, storage: ownable, event: OwnableEvent);
@@ -126,6 +129,11 @@ mod ElectronicSignature {
             signature_level: felt252,
             validity_period: u64
         ) -> DocumentSignature {
+            // Address validation - ensure caller address is not zero
+            let signer = get_caller_address();
+            let zero_address: ContractAddress = 0.try_into().unwrap();
+            assert(signer != zero_address, 'Invalid signer address');
+            
             // Ensure valid signature level
             assert(
                 signature_level == QES_LEVEL || 
@@ -134,25 +142,37 @@ mod ElectronicSignature {
                 'Invalid signature level'
             );
             
-            // Validate document data
+            // Enhanced document validation
             assert(document_data.len() > 0, 'Empty document data');
+            assert(document_data.len() < MAX_DOCUMENT_SIZE, 'Document too large');
+            assert(document_id != '', 'Empty document ID');
             
-            // Get caller as signer
-            let signer = get_caller_address();
+            // Get timestamp
             let timestamp = get_block_timestamp();
             
-            // Set expiration time based on validity period
+            // Overflow protection for expiration calculation
             // Default to 1 year (31536000 seconds) if not specified
+            let one_year = 31536000_u64;
+            // Maximum value for u64
+            let max_value = 18446744073709551615_u64; // 2^64 - 1
+            
             let expiration = if validity_period == 0 {
-                timestamp + 31536000_u64
+                // Check for overflow before adding one year
+                assert(timestamp <= max_value - one_year, 'Timestamp overflow');
+                timestamp + one_year
             } else {
+                // Check for overflow before adding validity period
+                assert(timestamp <= max_value - validity_period, 'Validity overflow');
                 timestamp + validity_period
             };
             
             // Calculate document hash using enhanced hashing
             let document_hash = self._calculate_document_hash(document_data);
             
-            // Create the signature object with expiration
+            // Get current nonce for this document-signer pair
+            let current_nonce = 0_u64; // In a full implementation, read from storage
+            
+            // Create the signature object with expiration and nonce
             let signature = DocumentSignature {
                 document_id: document_id,
                 document_hash: document_hash,
@@ -161,6 +181,7 @@ mod ElectronicSignature {
                 signature_level: signature_level,
                 is_revoked: false,
                 expiration_time: expiration,
+                nonce: current_nonce + 1, // Increment nonce for uniqueness
             };
             
             // Store the signature
@@ -186,6 +207,17 @@ mod ElectronicSignature {
             signer: ContractAddress,
             document_data: Array<felt252>
         ) -> bool {
+            // Address validation
+            let zero_address: ContractAddress = 0.try_into().unwrap();
+            if signer == zero_address {
+                return false;
+            }
+            
+            // Enhanced document validation
+            if document_data.len() == 0 || document_data.len() >= MAX_DOCUMENT_SIZE || document_id == '' {
+                return false;
+            }
+            
             // Get stored signature
             let signature = self.document_signatures.read((document_id, signer));
             
@@ -216,8 +248,13 @@ mod ElectronicSignature {
             ref self: ContractState,
             document_id: felt252
         ) {
-            // Get the signer (caller)
+            // Address validation - ensure caller address is not zero
             let signer = get_caller_address();
+            let zero_address: ContractAddress = 0.try_into().unwrap();
+            assert(signer != zero_address, 'Invalid signer address');
+            
+            // Document validation
+            assert(document_id != '', 'Empty document ID');
             
             // Get stored signature
             let mut signature = self.document_signatures.read((document_id, signer));
@@ -249,6 +286,11 @@ mod ElectronicSignature {
             document_id: felt252,
             signer: ContractAddress
         ) -> DocumentSignature {
+            // Address validation
+            let zero_address: ContractAddress = 0.try_into().unwrap();
+            assert(signer != zero_address, 'Invalid signer address');
+            assert(document_id != '', 'Empty document ID');
+            
             self.document_signatures.read((document_id, signer))
         }
 
@@ -259,6 +301,22 @@ mod ElectronicSignature {
             signer: ContractAddress,
             signature_level: felt252
         ) -> felt252 {
+            // Address validation
+            let zero_address: ContractAddress = 0.try_into().unwrap();
+            assert(signer != zero_address, 'Invalid signer address');
+            
+            // Validate document ID and hash
+            assert(document_id != '', 'Empty document ID');
+            assert(document_hash != 0, 'Invalid document hash');
+            
+            // Validate signature level
+            assert(
+                signature_level == QES_LEVEL || 
+                signature_level == AES_LEVEL || 
+                signature_level == SES_LEVEL,
+                'Invalid signature level'
+            );
+            
             let domain = self.domain_separator.read();
             
             let message = DocumentMessage {

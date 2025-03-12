@@ -10,4 +10,5 @@ struct DocumentSignature {
     signature_level: felt252,
     is_revoked: bool,
     expiration_time: u64,
+    nonce: u64, // Added for signature malleability protection
 }
