@@ -32,25 +32,39 @@ This project implements a Starknet smart contract for electronic document signin
 
 ## Project Structure
 
-- `src/lib.cairo`: The complete implementation including:
-  - EIP-712 inspired typed data structures 
-  - Core document signature functionality
-  - Comprehensive test suite
+- `src/utils/`: Utility modules:
+  - `constants.cairo`: Common constants used throughout the project
+  - `typed_data.cairo`: EIP-712 inspired data structures
+  - `signature.cairo`: Document signature data structure
+  - `events.cairo`: Event definitions
+
+- `src/interfaces/`: Contract interfaces:
+  - `iesg.cairo`: Electronic signature interface definitions
+
+- `src/contracts/`: Contract implementations:
+  - `esg.cairo`: Main electronic signature contract
+
+- `src/tests/`: Test modules:
+  - `test_esg.cairo`: Comprehensive test suite
 
 ## How It Works
 
 1. **Document Signing**:
-   - Documents are represented as arrays of felt252 values
+   - Documents are represented as arrays of felt252 values (up to ~5MB in size)
    - Each document gets a unique ID
-   - Signatures include the document hash, signer address, and qualification level
+   - Signatures include document hash, signer address, qualification level, expiration time, and nonce
+   - Documents are validated for proper size and non-empty content
 
 2. **Verification**:
    - Documents are verified by recomputing their hash and comparing to stored value
-   - System also checks if signature has been revoked
+   - System checks if signature has been revoked
+   - Verification also validates signature expiration time
+   - Address and document ID validation ensure data integrity
 
 3. **Authorization**:
    - Contract owner can authorize trusted signers
    - Only authorized signers can create valid document signatures
+   - Zero-address checks prevent invalid signers
 
 ## Usage Example
 
@@ -109,15 +123,27 @@ revoke_signature(document_id);
   - Length prefixing to prevent length extension attacks
   - Contract and domain binding to prevent replay attacks
 
-- **Signature Expiration**:
+- **Signature Security**:
   - Configurable validity periods for all signatures
   - Default 1-year expiration if not explicitly set
   - Automatic validation of expiration during verification
+  - Signature nonce to prevent signature malleability
+  - Comprehensive revocation mechanism
 
 - **Document Validation**:
   - Empty document prevention
+  - Size limit of approximately 5MB (~170,000 elements)
   - Comprehensive hash validation
   - Signature existence verification
+
+- **Address Validation**:
+  - Zero-address checks to prevent errors
+  - Input validation across all functions
+  - ID validation to prevent empty document IDs
+
+- **Overflow Protection**:
+  - Secure timestamp handling for expiration calculations
+  - Guards against integer overflow in sensitive operations
 
 - **Access Controls**:
   - Owner-managed system via OpenZeppelin's Ownable component
