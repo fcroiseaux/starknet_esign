@@ -1,10 +1,12 @@
 # eIDAS-Compliant Electronic Document Signing on Starknet
 
-This project implements a Starknet smart contract for electronic document signing with eIDAS compliance, using an approach inspired by Ethereum's EIP-712 structured data signing.
+## Project Description
 
-## Features
+This project implements a Starknet smart contract for electronic document signing with eIDAS compliance, using an approach inspired by Ethereum's EIP-712 structured data signing. It allows for secure, verifiable digital signatures on documents with multiple levels of legal compliance as defined by the European Union's electronic IDentification, Authentication and trust Services (eIDAS) regulation.
 
-- **eIDAS Levels Support**: Implements all three qualification levels:
+### Key Features
+
+- **eIDAS Compliance**: Supports all three qualification levels:
   - QES (Qualified Electronic Signature) - highest level of trust
   - AES (Advanced Electronic Signature) - medium level
   - SES (Simple Electronic Signature) - basic level
@@ -15,22 +17,21 @@ This project implements a Starknet smart contract for electronic document signin
   - Revoke signatures when needed
   - Track document ownership
 
+- **Security Features**:
+  - Multi-round hashing for stronger security
+  - Domain separation to prevent cross-domain attacks
+  - Comprehensive revocation mechanism
+  - Configurable signature validity periods
+  - Signature nonce to prevent malleability
+
 - **Access Control**:
-  - Owner-managed system of authorized signers using OpenZeppelin Ownable component
+  - Owner-managed system of authorized signers
   - Only authorized signers can create signatures
   - Only document owner or contract owner can revoke signatures
 
-- **EIP-712 Inspired Design**:
-  - Structured data signing approach
-  - Domain separation to prevent signature replay
-  - Typed data structures for document information
+## Code Structure
 
-- **OpenZeppelin Integration**:
-  - Uses Cairo 1.0.0 compatible OpenZeppelin components
-  - Implements Ownable for access control
-  - Includes SRC5 (Cairo's version of ERC165) for interface detection
-
-## Project Structure
+### Smart Contract Components
 
 - `src/utils/`: Utility modules:
   - `constants.cairo`: Common constants used throughout the project
@@ -47,26 +48,76 @@ This project implements a Starknet smart contract for electronic document signin
 - `src/tests/`: Test modules:
   - `test_esg.cairo`: Comprehensive test suite
 
-## How It Works
+### Client-Side Components
 
-1. **Document Signing**:
-   - Documents are represented as arrays of felt252 values (up to ~5MB in size)
-   - Each document gets a unique ID
-   - Signatures include document hash, signer address, qualification level, expiration time, and nonce
-   - Documents are validated for proper size and non-empty content
+- `pdf_sign.ts`: Node.js TypeScript client for document signing
+- `browser-pdf-sign.ts`: Browser-compatible TypeScript client
+- `index.html`: Demo web interface for PDF signing
+- `webpack.config.js`: Webpack configuration for bundling TypeScript code
 
-2. **Verification**:
-   - Documents are verified by recomputing their hash and comparing to stored value
-   - System checks if signature has been revoked
-   - Verification also validates signature expiration time
-   - Address and document ID validation ensure data integrity
+## Testing and Deployment
 
-3. **Authorization**:
-   - Contract owner can authorize trusted signers
-   - Only authorized signers can create valid document signatures
-   - Zero-address checks prevent invalid signers
+### Testing the Smart Contract
 
-## Usage Example
+1. Install Scarb (Cairo package manager):
+   ```bash
+   curl --proto '=https' --tlsv1.2 -sSf https://docs.swmansion.com/scarb/install.sh | sh
+   ```
+
+2. Clone the repository and navigate to the project directory:
+   ```bash
+   git clone https://github.com/yourusername/starknet_esign.git
+   cd starknet_esign
+   ```
+
+3. Run the test suite:
+   ```bash
+   scarb test
+   ```
+
+### Deploying the Contract on Starknet
+
+1. Build the smart contract:
+   ```bash
+   scarb build
+   ```
+
+2. Deploy to Starknet testnet using Starkli (or your preferred deployment tool):
+   ```bash
+   # First, set up your account and environment
+   starkli declare target/dev/starknet_esign_ESG.sierra.json
+   starkli deploy <CLASS_HASH> <CONSTRUCTOR_ARGS>
+   ```
+
+3. Make note of the contract address after deployment for client-side integration.
+
+### Testing the Web Interface
+
+1. Install Node.js dependencies:
+   ```bash
+   npm install
+   ```
+
+2. Update the contract address in `browser-pdf-sign.ts` and `pdf_sign.ts`:
+   ```typescript
+   const CONTRACT_ADDRESS = "0x..."; // Your deployed contract address
+   ```
+
+3. Build the TypeScript files:
+   ```bash
+   npm run build
+   ```
+
+4. Serve the application:
+   ```bash
+   npm run serve
+   ```
+
+5. Navigate to `http://localhost:8080` in your browser to use the interface.
+
+## Usage Examples
+
+### Smart Contract Usage (Cairo)
 
 ```cairo
 // Create a document
@@ -97,58 +148,79 @@ let is_expired = is_signature_expired(document_id, signer_address);
 revoke_signature(document_id);
 ```
 
-## Building and Testing
+### Node.js Client Usage
 
-1. Install Scarb: https://docs.swmansion.com/scarb/
-2. Build the project:
-   ```
-   scarb build
-   ```
-3. Run tests:
-   ```
-   scarb test
-   ```
+```typescript
+import { signPdfWithStarknet } from './pdf_sign';
 
-## Dependencies
+// Sign a PDF document
+const result = await signPdfWithStarknet(
+  '/path/to/document.pdf',   // Path to PDF file
+  'contract_2023_001'        // Document ID
+);
+
+console.log(`Transaction hash: ${result.transaction_hash}`);
+console.log(`Signature verified: ${result.signature_verified}`);
+```
+
+### Browser Client Usage
+
+```typescript
+import { signPdfWithStarknet } from './browser-pdf-sign';
+
+// File input from a form
+const fileInput = document.getElementById('fileInput');
+const file = fileInput.files[0];
+const documentId = 'contract_2023_001';
+
+// Convert file to ArrayBuffer
+const arrayBuffer = await file.arrayBuffer();
+
+// Sign the document (requires a connected Starknet wallet)
+const result = await signPdfWithStarknet(
+  arrayBuffer,
+  documentId, 
+  'QES',           // Signature level (QES, AES, or SES)
+  starknetWallet   // Connected wallet from starknet.js
+);
+
+// Display the results
+console.log(`Transaction hash: ${result.transaction_hash}`);
+console.log(`Signature verified: ${result.signature_verified}`);
+```
+
+## Web Interface
+
+The project includes a simple HTML interface (`index.html`) that demonstrates how to use the browser client:
+
+1. Upload a PDF document
+2. Enter a unique document ID
+3. Select signature level (QES, AES, or SES)
+4. Sign the document using a Starknet wallet
+5. View transaction details and verification status
+
+## Additional Information
+
+### Dependencies
 
 - **Starknet**: v2.3.0
 - **OpenZeppelin**: v1.0.0 
-- **Cairo Test**: v2.9.2 (for testing)
+- **Cairo**: v2.9.2
+- **Node.js**: v16.0.0+
+- **TypeScript**: v4.5.0+
+- **Webpack**: v5.0.0+
 
-## Security Features
+### Security Considerations
 
-- **Enhanced Cryptographic Hash Function**:
-  - Multi-round hashing for stronger security
-  - Domain separation to prevent cross-domain attacks
-  - Length prefixing to prevent length extension attacks
-  - Contract and domain binding to prevent replay attacks
+- Always verify the contract address before signing documents
+- Use appropriate eIDAS levels based on the document's legal requirements
+- Consider the expiration time for signatures based on document relevance
+- Be aware that document hashes are stored on-chain and are publicly visible
 
-- **Signature Security**:
-  - Configurable validity periods for all signatures
-  - Default 1-year expiration if not explicitly set
-  - Automatic validation of expiration during verification
-  - Signature nonce to prevent signature malleability
-  - Comprehensive revocation mechanism
+### Legal Disclaimer
 
-- **Document Validation**:
-  - Empty document prevention
-  - Size limit of approximately 5MB (~170,000 elements)
-  - Comprehensive hash validation
-  - Signature existence verification
+This project is intended as a technical implementation of eIDAS-compliant electronic signatures. For actual legal compliance, please consult with a legal expert familiar with eIDAS regulations in your jurisdiction.
 
-- **Address Validation**:
-  - Zero-address checks to prevent errors
-  - Input validation across all functions
-  - ID validation to prevent empty document IDs
-
-- **Overflow Protection**:
-  - Secure timestamp handling for expiration calculations
-  - Guards against integer overflow in sensitive operations
-
-- **Access Controls**:
-  - Owner-managed system via OpenZeppelin's Ownable component
-  - Proper revocation controls
-  
 ## Compatibility Notes
 
 This project is built with Cairo 2023_01 edition for maximum stability and is fully compatible with OpenZeppelin for Cairo v1.0.0. The code follows the component-based architecture pattern recommended for Starknet contract development.
