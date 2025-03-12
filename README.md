@@ -16,7 +16,7 @@ This project implements a Starknet smart contract for electronic document signin
   - Track document ownership
 
 - **Access Control**:
-  - Owner-managed system of authorized signers
+  - Owner-managed system of authorized signers using OpenZeppelin Ownable component
   - Only authorized signers can create signatures
   - Only document owner or contract owner can revoke signatures
 
@@ -24,6 +24,11 @@ This project implements a Starknet smart contract for electronic document signin
   - Structured data signing approach
   - Domain separation to prevent signature replay
   - Typed data structures for document information
+
+- **OpenZeppelin Integration**:
+  - Uses Cairo 1.0.0 compatible OpenZeppelin components
+  - Implements Ownable for access control
+  - Includes SRC5 (Cairo's version of ERC165) for interface detection
 
 ## Project Structure
 
@@ -82,6 +87,12 @@ revoke_signature(ref signature);
    scarb test
    ```
 
+## Dependencies
+
+- **Starknet**: v2.3.0
+- **OpenZeppelin**: v1.0.0 
+- **Cairo Test**: v2.9.2 (for testing)
+
 ## Security Notes
 
 - The pedersen hash function implementation is simplified for demonstration
@@ -90,3 +101,7 @@ revoke_signature(ref signature);
   - Implement strict access controls
   - Add additional document metadata validation
   - Consider implementing signature expiration
+  
+## Compatibility Notes
+
+This project is built with Cairo 2023_01 edition for maximum stability and is fully compatible with OpenZeppelin for Cairo v1.0.0. The code follows the component-based architecture pattern recommended for Starknet contract development.

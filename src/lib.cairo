@@ -1,158 +1,383 @@
-// This module implements electronic document signing functionality
-// with support for eIDAS compliance levels and EIP-712 inspired data structures
+#[starknet::contract]
+mod ElectronicSignature {
+    use core::array::ArrayTrait;
+    use openzeppelin::access::ownable::OwnableComponent;
+    use openzeppelin::introspection::interface::ISRC5_ID;
+    use openzeppelin::introspection::src5::SRC5Component;
+    use openzeppelin::token::erc20::interface::IERC20;
+    use starknet::ContractAddress;
+    use starknet::get_caller_address;
+    use starknet::get_block_timestamp;
+    use starknet::info::get_contract_address;
+    use starknet::class_hash::ClassHash;
+    use core::hash::LegacyHash;
+    use core::traits::Into;
+    use core::traits::TryInto;
+    use core::pedersen::pedersen;
 
-// EIP-712 inspired typed data structures
-mod eip712 {
-    // Domain separator for EIP-712 style typed data
-    #[derive(Drop)]
+    // Component Declarations
+    component!(path: OwnableComponent, storage: ownable, event: OwnableEvent);
+    component!(path: SRC5Component, storage: src5, event: SRC5Event);
+
+    // Interface implementations
+    #[abi(embed_v0)]
+    impl OwnableImpl = OwnableComponent::OwnableImpl<ContractState>;
+    impl OwnableInternalImpl = OwnableComponent::InternalImpl<ContractState>;
+    
+    #[abi(embed_v0)]
+    impl SRC5Impl = SRC5Component::SRC5Impl<ContractState>;
+    impl SRC5InternalImpl = SRC5Component::InternalImpl<ContractState>;
+
+    // eIDAS Electronic Signature Levels
+    const QES_LEVEL: felt252 = 'QES'; // Qualified Electronic Signature
+    const AES_LEVEL: felt252 = 'AES'; // Advanced Electronic Signature
+    const SES_LEVEL: felt252 = 'SES'; // Simple Electronic Signature
+
+    // EIP-712 inspired typed data structures
+    #[derive(Drop, Copy, Serde, starknet::Store)]
     struct Domain {
         name: felt252,
         version: felt252,
         chain_id: felt252,
-        verifying_contract: felt252,
+        verifying_contract: ContractAddress,
         salt: felt252,
     }
     
-    // Document message for signature
-    #[derive(Drop)]
+    #[derive(Drop, Copy, Serde)]
     struct DocumentMessage {
         document_id: felt252,
         document_hash: felt252,
-        timestamp: felt252,
-        signer: felt252,
+        timestamp: u64,
+        signer: ContractAddress,
         signature_level: felt252,
     }
     
-    // Complete typed data for document signing
-    #[derive(Drop)]
+    #[derive(Drop, Copy, Serde)]
     struct TypedData {
         domain: Domain,
         message: DocumentMessage,
     }
-    
-    // Hash the domain data
-    fn hash_domain(domain: Domain) -> felt252 {
-        let mut hash = domain.name;
-        hash = hash + domain.version;
-        hash = hash + domain.chain_id;
-        hash = hash + domain.verifying_contract;
-        hash = hash + domain.salt;
-        hash
-    }
-    
-    // Hash the document message
-    fn hash_message(message: DocumentMessage) -> felt252 {
-        let mut hash = message.document_id;
-        hash = hash + message.document_hash;
-        hash = hash + message.timestamp;
-        hash = hash + message.signer;
-        hash = hash + message.signature_level;
-        hash
-    }
-    
-    // Hash the complete typed data
-    fn hash_typed_data(data: TypedData) -> felt252 {
-        let domain_hash = hash_domain(data.domain);
-        let message_hash = hash_message(data.message);
-        domain_hash + message_hash
-    }
-}
 
-// eIDAS Electronic Signature Levels
-const QES_LEVEL: felt252 = 'QES'; // Qualified Electronic Signature
-const AES_LEVEL: felt252 = 'AES'; // Advanced Electronic Signature
-const SES_LEVEL: felt252 = 'SES'; // Simple Electronic Signature
+    // Document signature structure
+    #[derive(Drop, Copy, Serde, starknet::Store)]
+    struct DocumentSignature {
+        document_id: felt252,
+        document_hash: felt252,
+        signer_address: ContractAddress,
+        timestamp: u64,
+        signature_level: felt252,
+        is_revoked: bool,
+    }
 
-// Document signature structure
-#[derive(Drop, Copy)]
-struct DocumentSignature {
-    document_id: felt252,
-    document_hash: felt252,
-    signer_address: felt252,
-    timestamp: felt252,
-    signature_level: felt252,
-    is_revoked: bool,
-}
+    // Events
+    #[event]
+    #[derive(Drop, starknet::Event)]
+    enum Event {
+        DocumentSigned: DocumentSigned,
+        SignatureRevoked: SignatureRevoked,
+        OwnableEvent: OwnableComponent::Event,
+        SRC5Event: SRC5Component::Event,
+    }
 
-// Calculate a simple hash for a document
-fn calculate_document_hash(data: Array<felt252>) -> felt252 {
-    let mut hash: felt252 = 0;
-    let mut i: u32 = 0;
-    
-    loop {
-        if i >= data.len() {
-            break;
+    #[derive(Drop, starknet::Event)]
+    struct DocumentSigned {
+        document_id: felt252,
+        document_hash: felt252,
+        signer: ContractAddress,
+        timestamp: u64,
+        signature_level: felt252
+    }
+
+    #[derive(Drop, starknet::Event)]
+    struct SignatureRevoked {
+        document_id: felt252,
+        signer: ContractAddress,
+        timestamp: u64
+    }
+
+    // Storage
+    #[storage]
+    struct Storage {
+        document_signatures: starknet::storage::Map::<(felt252, ContractAddress), DocumentSignature>,
+        domain_separator: Domain,
+        #[substorage(v0)]
+        ownable: OwnableComponent::Storage,
+        #[substorage(v0)]
+        src5: SRC5Component::Storage,
+    }
+
+    // Constructor
+    #[constructor]
+    fn constructor(
+        ref self: ContractState,
+        initial_owner: ContractAddress,
+        contract_name: felt252,
+        contract_version: felt252
+    ) {
+        // Initialize components
+        self.ownable.initializer(initial_owner);
+        self.src5.register_interface(ISRC5_ID);
+
+        // Set domain separator
+        let domain_value = Domain {
+            name: contract_name,
+            version: contract_version,
+            chain_id: 1, // Default chain ID - update as needed
+            verifying_contract: get_contract_address(),
+            salt: 0,
+        };
+        self.domain_separator.write(domain_value);
+    }
+
+    // Contract functions
+    #[abi(embed_v0)]
+    impl ElectronicSignatureImpl of super::IElectronicSignature<ContractState> {
+        fn sign_document(
+            ref self: ContractState,
+            document_id: felt252, 
+            document_data: Array<felt252>,
+            signature_level: felt252
+        ) -> DocumentSignature {
+            // Ensure valid signature level
+            assert(
+                signature_level == QES_LEVEL || 
+                signature_level == AES_LEVEL || 
+                signature_level == SES_LEVEL,
+                'Invalid signature level'
+            );
+            
+            // Get caller as signer
+            let signer = get_caller_address();
+            let timestamp = get_block_timestamp();
+            
+            // Calculate document hash using proper hashing
+            let document_hash = self._calculate_document_hash(document_data);
+            
+            // Create the signature object
+            let signature = DocumentSignature {
+                document_id: document_id,
+                document_hash: document_hash,
+                signer_address: signer,
+                timestamp: timestamp,
+                signature_level: signature_level,
+                is_revoked: false,
+            };
+            
+            // Store the signature
+            self.document_signatures.write((document_id, signer), signature);
+            
+            // Emit event
+            self.emit(
+                DocumentSigned {
+                    document_id: document_id,
+                    document_hash: document_hash,
+                    signer: signer,
+                    timestamp: timestamp,
+                    signature_level: signature_level
+                }
+            );
+            
+            signature
+        }
+
+        fn verify_document_signature(
+            self: @ContractState,
+            document_id: felt252,
+            signer: ContractAddress,
+            document_data: Array<felt252>
+        ) -> bool {
+            // Get stored signature
+            let signature = self.document_signatures.read((document_id, signer));
+            
+            // Check if signature is revoked
+            if signature.is_revoked {
+                return false;
+            }
+            
+            // Calculate hash of provided data
+            let computed_hash = self._calculate_document_hash(document_data);
+            
+            // Compare with the stored hash
+            computed_hash == signature.document_hash
+        }
+
+        fn revoke_signature(
+            ref self: ContractState,
+            document_id: felt252
+        ) {
+            // Get the signer (caller)
+            let signer = get_caller_address();
+            
+            // Get stored signature
+            let mut signature = self.document_signatures.read((document_id, signer));
+            
+            // Ensure signature exists
+            assert(signature.document_hash != 0, 'Signature does not exist');
+            
+            // Ensure signature is not already revoked
+            assert(!signature.is_revoked, 'Already revoked');
+            
+            // Revoke the signature
+            signature.is_revoked = true;
+            
+            // Update storage
+            self.document_signatures.write((document_id, signer), signature);
+            
+            // Emit event
+            self.emit(
+                SignatureRevoked {
+                    document_id: document_id,
+                    signer: signer,
+                    timestamp: get_block_timestamp()
+                }
+            );
+        }
+
+        fn get_signature(
+            self: @ContractState,
+            document_id: felt252,
+            signer: ContractAddress
+        ) -> DocumentSignature {
+            self.document_signatures.read((document_id, signer))
+        }
+
+        fn hash_typed_data(
+            self: @ContractState,
+            document_id: felt252,
+            document_hash: felt252,
+            signer: ContractAddress,
+            signature_level: felt252
+        ) -> felt252 {
+            let domain = self.domain_separator.read();
+            
+            let message = DocumentMessage {
+                document_id: document_id,
+                document_hash: document_hash,
+                timestamp: get_block_timestamp(),
+                signer: signer,
+                signature_level: signature_level
+            };
+            
+            let typed_data = TypedData { domain, message };
+            self._hash_typed_data(typed_data)
+        }
+    }
+
+    // Internal functions
+    #[generate_trait]
+    impl InternalFunctions of InternalFunctionsTrait {
+        fn _calculate_document_hash(self: @ContractState, data: Array<felt252>) -> felt252 {
+            let mut hash: felt252 = 0;
+            let mut i: u32 = 0;
+            
+            loop {
+                if i >= data.len() {
+                    break;
+                }
+                
+                // Use Pedersen hash
+                hash = pedersen(hash, *data.at(i));
+                i += 1;
+            };
+            
+            hash
+        }
+
+        fn _hash_domain(self: @ContractState, domain: Domain) -> felt252 {
+            let mut state = LegacyHash::hash('EIP712Domain', 0);
+            state = LegacyHash::hash(state, domain.name);
+            state = LegacyHash::hash(state, domain.version);
+            state = LegacyHash::hash(state, domain.chain_id);
+            // Convert ContractAddress to felt252 using TryInto
+            let contract_felt: felt252 = domain.verifying_contract.into();
+            state = LegacyHash::hash(state, contract_felt);
+            state = LegacyHash::hash(state, domain.salt);
+            state
         }
         
-        // Simple hash function (for demonstration only)
-        hash = hash + *data.at(i);
-        i += 1;
-    };
-    
-    hash
-}
-
-// Create a document signature
-fn sign_document(
-    document_id: felt252, 
-    document_data: Array<felt252>,
-    signer_address: felt252,
-    signature_level: felt252
-) -> DocumentSignature {
-    // Ensure valid signature level
-    assert(
-        signature_level == QES_LEVEL || 
-        signature_level == AES_LEVEL || 
-        signature_level == SES_LEVEL,
-        'Invalid signature level'
-    );
-    
-    // Calculate document hash
-    let document_hash = calculate_document_hash(document_data);
-    
-    // Create the signature object
-    DocumentSignature {
-        document_id: document_id,
-        document_hash: document_hash,
-        signer_address: signer_address,
-        timestamp: 0, // Would use block timestamp in a real contract
-        signature_level: signature_level,
-        is_revoked: false,
+        fn _hash_message(self: @ContractState, message: DocumentMessage) -> felt252 {
+            let mut state = LegacyHash::hash('DocumentMessage', 0);
+            state = LegacyHash::hash(state, message.document_id);
+            state = LegacyHash::hash(state, message.document_hash);
+            let timestamp_felt: felt252 = message.timestamp.into();
+            state = LegacyHash::hash(state, timestamp_felt);
+            // Convert ContractAddress to felt252 using TryInto
+            let signer_felt: felt252 = message.signer.into();
+            state = LegacyHash::hash(state, signer_felt);
+            state = LegacyHash::hash(state, message.signature_level);
+            state
+        }
+        
+        fn _hash_typed_data(self: @ContractState, data: TypedData) -> felt252 {
+            let domain_hash = self._hash_domain(data.domain);
+            let message_hash = self._hash_message(data.message);
+            LegacyHash::hash(domain_hash, message_hash)
+        }
     }
 }
 
-// Verify a document signature
-fn verify_document_signature(
-    signature: DocumentSignature, 
-    document_data: Array<felt252>
-) -> bool {
-    // Check if signature is revoked
-    if signature.is_revoked {
-        return false;
-    }
-    
-    // Calculate hash of provided data
-    let computed_hash = calculate_document_hash(document_data);
-    
-    // Compare with the stored hash
-    computed_hash == signature.document_hash
-}
+// Contract interface
+#[starknet::interface]
+trait IElectronicSignature<TContractState> {
+    fn sign_document(
+        ref self: TContractState,
+        document_id: felt252, 
+        document_data: Array<felt252>,
+        signature_level: felt252
+    ) -> ElectronicSignature::DocumentSignature;
 
-// Revoke a signature
-fn revoke_signature(ref signature: DocumentSignature) {
-    signature.is_revoked = true;
+    fn verify_document_signature(
+        self: @TContractState,
+        document_id: felt252,
+        signer: starknet::ContractAddress,
+        document_data: Array<felt252>
+    ) -> bool;
+
+    fn revoke_signature(ref self: TContractState, document_id: felt252);
+    
+    fn get_signature(
+        self: @TContractState, 
+        document_id: felt252, 
+        signer: starknet::ContractAddress
+    ) -> ElectronicSignature::DocumentSignature;
+    
+    fn hash_typed_data(
+        self: @TContractState,
+        document_id: felt252,
+        document_hash: felt252,
+        signer: starknet::ContractAddress,
+        signature_level: felt252
+    ) -> felt252;
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{
-        QES_LEVEL, AES_LEVEL, SES_LEVEL,
-        calculate_document_hash, sign_document, verify_document_signature, revoke_signature
-    };
-    use array::ArrayTrait;
+    use super::{ElectronicSignature, IElectronicSignature};
+    use super::ElectronicSignature::{QES_LEVEL, AES_LEVEL, SES_LEVEL, DocumentSignature};
+    use starknet::{ContractAddress, testing};
+    use core::array::ArrayTrait;
+    use core::traits::TryInto;
+    use core::option::OptionTrait;
+    use starknet::testing::set_caller_address;
+    
+    // Helper function to create a contract address for testing
+    fn contract_address_const(value: felt252) -> ContractAddress {
+        value.try_into().unwrap()
+    }
     
     #[test]
+    #[available_gas(2000000)]
     fn test_document_signing() {
+        // Setup test environment
+        let caller = contract_address_const(0x10);
+        let owner = contract_address_const(0x1);
+        let contract_name = 'ElectronicSignature';
+        let contract_version = 'v1.0.0';
+        
+        // Deploy the contract
+        let mut state = ElectronicSignature::contract_state_for_testing();
+        ElectronicSignature::constructor(ref state, owner, contract_name, contract_version);
+        
         // Create a sample document
         let document_id = 'test_contract_1';
         let mut document_data = ArrayTrait::new();
@@ -162,18 +387,18 @@ mod tests {
         document_data.append('test');
         document_data.append('document');
         
-        let signer_address = 'signer_1';
+        // Set the caller as a signer
+        set_caller_address(caller);
         
         // Sign the document with QES level
-        let signature = sign_document(
-            document_id,
-            document_data.clone(),
-            signer_address,
-            QES_LEVEL
+        let impl_object = ElectronicSignature::ElectronicSignatureImpl::sign_document(
+            ref state, document_id, document_data.clone(), QES_LEVEL
         );
         
         // Verify the signature
-        let is_valid = verify_document_signature(signature, document_data.clone());
+        let is_valid = ElectronicSignature::ElectronicSignatureImpl::verify_document_signature(
+            @state, document_id, caller, document_data.clone()
+        );
         assert(is_valid, 'Signature should be valid');
         
         // Modify the document data
@@ -181,41 +406,68 @@ mod tests {
         modified_data.append('modified');
         
         // Verify the modified document (should fail)
-        let is_modified_valid = verify_document_signature(signature, modified_data);
+        let is_modified_valid = ElectronicSignature::ElectronicSignatureImpl::verify_document_signature(
+            @state, document_id, caller, modified_data
+        );
         assert(!is_modified_valid, 'Should not verify');
     }
     
     #[test]
+    #[available_gas(2000000)]
     fn test_signature_revocation() {
+        // Setup test environment
+        let caller = contract_address_const(0x20);
+        let owner = contract_address_const(0x1);
+        let contract_name = 'ElectronicSignature';
+        let contract_version = 'v1.0.0';
+        
+        // Deploy the contract
+        let mut state = ElectronicSignature::contract_state_for_testing();
+        ElectronicSignature::constructor(ref state, owner, contract_name, contract_version);
+        
         // Create and sign a document
         let document_id = 'test_revoke';
         let mut document_data = ArrayTrait::new();
         document_data.append('Revocable');
         document_data.append('Document');
         
-        let signer_address = 'signer_2';
+        // Set the caller as a signer
+        set_caller_address(caller);
         
         // Sign with AES level
-        let mut signature = sign_document(
-            document_id,
-            document_data.clone(),
-            signer_address,
-            AES_LEVEL
+        let impl_object = ElectronicSignature::ElectronicSignatureImpl::sign_document(
+            ref state, document_id, document_data.clone(), AES_LEVEL
         );
         
         // Verify initial validity
-        assert(!signature.is_revoked, 'Should not be revoked');
-        let is_valid = verify_document_signature(signature, document_data.clone());
+        let stored_signature = ElectronicSignature::ElectronicSignatureImpl::get_signature(
+            @state, document_id, caller
+        );
+        assert(!stored_signature.is_revoked, 'Should not be revoked');
+        
+        let is_valid = ElectronicSignature::ElectronicSignatureImpl::verify_document_signature(
+            @state, document_id, caller, document_data.clone()
+        );
         assert(is_valid, 'Should be valid');
         
         // Revoke the signature
-        revoke_signature(ref signature);
+        ElectronicSignature::ElectronicSignatureImpl::revoke_signature(
+            ref state, document_id
+        );
         
         // Check revocation status
-        assert(signature.is_revoked, 'Should be revoked');
+        let revoked_signature = ElectronicSignature::ElectronicSignatureImpl::get_signature(
+            @state, document_id, caller
+        );
+        assert(revoked_signature.is_revoked, 'Should be revoked');
         
         // Verify document after revocation (should fail)
-        let is_valid_after = verify_document_signature(signature, document_data.clone());
+        let is_valid_after = ElectronicSignature::ElectronicSignatureImpl::verify_document_signature(
+            @state, document_id, caller, document_data.clone()
+        );
         assert(!is_valid_after, 'Should be invalid');
     }
+    
+    // The hash_typed_data test is intentionally omitted due to complexity
+    // with testing this function properly in the current test setup
 }
