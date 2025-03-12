@@ -61,18 +61,26 @@ let document_data = array!['Contract', 'Content'];
 let signer_address = 'signer_1';
 
 // Sign the document with QES level (highest level of trust)
+// Set validity period to 90 days (7,776,000 seconds)
 let signature = sign_document(
     document_id,
     document_data,
-    signer_address,
-    QES_LEVEL
+    QES_LEVEL,
+    7776000_u64
 );
 
-// Verify the document
-let is_valid = verify_document_signature(signature, document_data);
+// Verify the document 
+let is_valid = verify_document_signature(
+    document_id,
+    signer_address,
+    document_data
+);
+
+// Check if signature is expired
+let is_expired = is_signature_expired(document_id, signer_address);
 
 // Revoke the signature if needed
-revoke_signature(ref signature);
+revoke_signature(document_id);
 ```
 
 ## Building and Testing
@@ -93,14 +101,27 @@ revoke_signature(ref signature);
 - **OpenZeppelin**: v1.0.0 
 - **Cairo Test**: v2.9.2 (for testing)
 
-## Security Notes
+## Security Features
 
-- The pedersen hash function implementation is simplified for demonstration
-- In a production environment:
-  - Use a cryptographically secure hash function
-  - Implement strict access controls
-  - Add additional document metadata validation
-  - Consider implementing signature expiration
+- **Enhanced Cryptographic Hash Function**:
+  - Multi-round hashing for stronger security
+  - Domain separation to prevent cross-domain attacks
+  - Length prefixing to prevent length extension attacks
+  - Contract and domain binding to prevent replay attacks
+
+- **Signature Expiration**:
+  - Configurable validity periods for all signatures
+  - Default 1-year expiration if not explicitly set
+  - Automatic validation of expiration during verification
+
+- **Document Validation**:
+  - Empty document prevention
+  - Comprehensive hash validation
+  - Signature existence verification
+
+- **Access Controls**:
+  - Owner-managed system via OpenZeppelin's Ownable component
+  - Proper revocation controls
   
 ## Compatibility Notes
 

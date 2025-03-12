@@ -67,6 +67,7 @@ mod ElectronicSignature {
         timestamp: u64,
         signature_level: felt252,
         is_revoked: bool,
+        expiration_time: u64, // Added expiration timestamp for security
     }
 
     // Events
@@ -112,17 +113,18 @@ mod ElectronicSignature {
         ref self: ContractState,
         initial_owner: ContractAddress,
         contract_name: felt252,
-        contract_version: felt252
+        contract_version: felt252,
+        chain_id: felt252
     ) {
         // Initialize components
         self.ownable.initializer(initial_owner);
         self.src5.register_interface(ISRC5_ID);
 
-        // Set domain separator
+        // Set domain separator with configurable chain_id
         let domain_value = Domain {
             name: contract_name,
             version: contract_version,
-            chain_id: 1, // Default chain ID - update as needed
+            chain_id: chain_id,
             verifying_contract: get_contract_address(),
             salt: 0,
         };
@@ -132,11 +134,28 @@ mod ElectronicSignature {
     // Contract functions
     #[abi(embed_v0)]
     impl ElectronicSignatureImpl of super::IElectronicSignature<ContractState> {
+        // Check if a signature is expired
+        fn is_signature_expired(
+            self: @ContractState,
+            document_id: felt252,
+            signer: ContractAddress
+        ) -> bool {
+            let signature = self.document_signatures.read((document_id, signer));
+            
+            // If signature doesn't exist or has no hash, consider it expired
+            if signature.document_hash == 0 {
+                return true;
+            }
+            
+            let current_time = get_block_timestamp();
+            current_time > signature.expiration_time
+        }
         fn sign_document(
             ref self: ContractState,
             document_id: felt252, 
             document_data: Array<felt252>,
-            signature_level: felt252
+            signature_level: felt252,
+            validity_period: u64
         ) -> DocumentSignature {
             // Ensure valid signature level
             assert(
@@ -146,14 +165,25 @@ mod ElectronicSignature {
                 'Invalid signature level'
             );
             
+            // Validate document data
+            assert(document_data.len() > 0, 'Empty document data');
+            
             // Get caller as signer
             let signer = get_caller_address();
             let timestamp = get_block_timestamp();
             
-            // Calculate document hash using proper hashing
+            // Set expiration time based on validity period
+            // Default to 1 year (31536000 seconds) if not specified
+            let expiration = if validity_period == 0 {
+                timestamp + 31536000_u64
+            } else {
+                timestamp + validity_period
+            };
+            
+            // Calculate document hash using enhanced hashing
             let document_hash = self._calculate_document_hash(document_data);
             
-            // Create the signature object
+            // Create the signature object with expiration
             let signature = DocumentSignature {
                 document_id: document_id,
                 document_hash: document_hash,
@@ -161,6 +191,7 @@ mod ElectronicSignature {
                 timestamp: timestamp,
                 signature_level: signature_level,
                 is_revoked: false,
+                expiration_time: expiration,
             };
             
             // Store the signature
@@ -189,8 +220,19 @@ mod ElectronicSignature {
             // Get stored signature
             let signature = self.document_signatures.read((document_id, signer));
             
+            // Validate document exists (non-zero hash)
+            if signature.document_hash == 0 {
+                return false;
+            }
+            
             // Check if signature is revoked
             if signature.is_revoked {
+                return false;
+            }
+            
+            // Check if signature is expired
+            let current_time = get_block_timestamp();
+            if current_time > signature.expiration_time {
                 return false;
             }
             
@@ -267,18 +309,36 @@ mod ElectronicSignature {
     #[generate_trait]
     impl InternalFunctions of InternalFunctionsTrait {
         fn _calculate_document_hash(self: @ContractState, data: Array<felt252>) -> felt252 {
-            let mut hash: felt252 = 0;
+            // Enhanced security hash implementation
+            // 1. Use a domain separator as prefix to prevent cross-domain attacks
+            let domain = self.domain_separator.read();
+            let domain_name_hash = LegacyHash::hash('DOCUMENT_HASH', domain.name);
+            
+            // 2. Include length as part of hash to prevent length extension attacks
+            let data_length_felt: felt252 = data.len().into();
+            let length_hash = LegacyHash::hash(domain_name_hash, data_length_felt);
+            
+            // 3. Use multi-round hashing with non-linear combination
+            let mut hash: felt252 = length_hash;
             let mut i: u32 = 0;
             
+            // First round - sequential hashing
             loop {
                 if i >= data.len() {
                     break;
                 }
                 
-                // Use Pedersen hash
+                // Apply Pedersen hash for each element
                 hash = pedersen(hash, *data.at(i));
                 i += 1;
             };
+            
+            // Second round - fold hash with domain information for additional security
+            hash = LegacyHash::hash(hash, domain.chain_id);
+            
+            // Final mixing step
+            let contract_felt: felt252 = domain.verifying_contract.into();
+            hash = LegacyHash::hash(hash, contract_felt);
             
             hash
         }
@@ -323,7 +383,8 @@ trait IElectronicSignature<TContractState> {
         ref self: TContractState,
         document_id: felt252, 
         document_data: Array<felt252>,
-        signature_level: felt252
+        signature_level: felt252,
+        validity_period: u64
     ) -> ElectronicSignature::DocumentSignature;
 
     fn verify_document_signature(
@@ -348,6 +409,13 @@ trait IElectronicSignature<TContractState> {
         signer: starknet::ContractAddress,
         signature_level: felt252
     ) -> felt252;
+    
+    // Check if a signature is expired
+    fn is_signature_expired(
+        self: @TContractState,
+        document_id: felt252,
+        signer: starknet::ContractAddress
+    ) -> bool;
 }
 
 #[cfg(test)]
@@ -373,10 +441,11 @@ mod tests {
         let owner = contract_address_const(0x1);
         let contract_name = 'ElectronicSignature';
         let contract_version = 'v1.0.0';
+        let chain_id = 1;
         
         // Deploy the contract
         let mut state = ElectronicSignature::contract_state_for_testing();
-        ElectronicSignature::constructor(ref state, owner, contract_name, contract_version);
+        ElectronicSignature::constructor(ref state, owner, contract_name, contract_version, chain_id);
         
         // Create a sample document
         let document_id = 'test_contract_1';
@@ -390,9 +459,10 @@ mod tests {
         // Set the caller as a signer
         set_caller_address(caller);
         
-        // Sign the document with QES level
-        let impl_object = ElectronicSignature::ElectronicSignatureImpl::sign_document(
-            ref state, document_id, document_data.clone(), QES_LEVEL
+        // Sign the document with QES level and 1 hour validity (3600 seconds)
+        let validity_period = 3600_u64;
+        let _signature = ElectronicSignature::ElectronicSignatureImpl::sign_document(
+            ref state, document_id, document_data.clone(), QES_LEVEL, validity_period
         );
         
         // Verify the signature
@@ -400,6 +470,12 @@ mod tests {
             @state, document_id, caller, document_data.clone()
         );
         assert(is_valid, 'Signature should be valid');
+        
+        // Check expiration status
+        let is_expired = ElectronicSignature::ElectronicSignatureImpl::is_signature_expired(
+            @state, document_id, caller
+        );
+        assert(!is_expired, 'Signature should not be expired');
         
         // Modify the document data
         let mut modified_data = document_data.clone();
@@ -420,10 +496,11 @@ mod tests {
         let owner = contract_address_const(0x1);
         let contract_name = 'ElectronicSignature';
         let contract_version = 'v1.0.0';
+        let chain_id = 1;
         
         // Deploy the contract
         let mut state = ElectronicSignature::contract_state_for_testing();
-        ElectronicSignature::constructor(ref state, owner, contract_name, contract_version);
+        ElectronicSignature::constructor(ref state, owner, contract_name, contract_version, chain_id);
         
         // Create and sign a document
         let document_id = 'test_revoke';
@@ -434,9 +511,10 @@ mod tests {
         // Set the caller as a signer
         set_caller_address(caller);
         
-        // Sign with AES level
-        let impl_object = ElectronicSignature::ElectronicSignatureImpl::sign_document(
-            ref state, document_id, document_data.clone(), AES_LEVEL
+        // Sign with AES level and 2 day validity (172800 seconds)
+        let validity_period = 172800_u64;
+        let _signature = ElectronicSignature::ElectronicSignatureImpl::sign_document(
+            ref state, document_id, document_data.clone(), AES_LEVEL, validity_period
         );
         
         // Verify initial validity
@@ -468,6 +546,42 @@ mod tests {
         assert(!is_valid_after, 'Should be invalid');
     }
     
-    // The hash_typed_data test is intentionally omitted due to complexity
-    // with testing this function properly in the current test setup
+    #[test]
+    #[available_gas(2000000)]
+    fn test_hash_typed_data() {
+        // Setup test environment
+        let _caller = contract_address_const(0x30);
+        let owner = contract_address_const(0x1);
+        let contract_name = 'ElectronicSignature';
+        let contract_version = 'v1.0.0';
+        let chain_id = 1;
+        
+        // Deploy the contract
+        let mut state = ElectronicSignature::contract_state_for_testing();
+        ElectronicSignature::constructor(ref state, owner, contract_name, contract_version, chain_id);
+        
+        // Create test data
+        let document_id = 'test_hash';
+        let document_hash = 0x1234567890abcdef;
+        let signer = contract_address_const(0x30);
+        
+        // Generate hash for QES level
+        let hash_qes = ElectronicSignature::ElectronicSignatureImpl::hash_typed_data(
+            @state, document_id, document_hash, signer, QES_LEVEL
+        );
+        
+        // Generate hash for AES level - should be different from QES
+        let hash_aes = ElectronicSignature::ElectronicSignatureImpl::hash_typed_data(
+            @state, document_id, document_hash, signer, AES_LEVEL
+        );
+        
+        // Verify hashes are different for different signature levels
+        assert(hash_qes != hash_aes, 'Hashes should be different');
+        
+        // Verify consistency - hashing same data twice produces same result
+        let hash_qes2 = ElectronicSignature::ElectronicSignatureImpl::hash_typed_data(
+            @state, document_id, document_hash, signer, QES_LEVEL
+        );
+        assert(hash_qes == hash_qes2, 'Hash should be consistent');
+    }
 }
