@@ -2,17 +2,17 @@ use starknet::ContractAddress;
 
 // Events for document operations
 #[derive(Drop, starknet::Event)]
-struct DocumentSigned {
-    document_id: felt252,
-    document_hash: felt252,
-    signer: ContractAddress,
-    timestamp: u64,
-    signature_level: felt252
+pub struct DocumentSigned {
+    pub document_id: felt252,
+    pub document_hash: felt252,
+    pub signer: ContractAddress,
+    pub timestamp: u64,
+    pub signature_level: felt252
 }
 
 #[derive(Drop, starknet::Event)]
-struct SignatureRevoked {
-    document_id: felt252,
-    signer: ContractAddress,
-    timestamp: u64
+pub struct SignatureRevoked {
+    pub document_id: felt252,
+    pub signer: ContractAddress,
+    pub timestamp: u64
 }

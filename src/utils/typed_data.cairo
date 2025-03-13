@@ -2,25 +2,25 @@ use starknet::ContractAddress;
 
 // EIP-712 inspired typed data structures
 #[derive(Drop, Copy, Serde, starknet::Store)]
-struct Domain {
-    name: felt252,
-    version: felt252,
-    chain_id: felt252,
-    verifying_contract: ContractAddress,
-    salt: felt252,
+pub struct Domain {
+    pub name: felt252,
+    pub version: felt252,
+    pub chain_id: felt252,
+    pub verifying_contract: ContractAddress,
+    pub salt: felt252,
 }
 
 #[derive(Drop, Copy, Serde)]
-struct DocumentMessage {
-    document_id: felt252,
-    document_hash: felt252,
-    timestamp: u64,
-    signer: ContractAddress,
-    signature_level: felt252,
+pub struct DocumentMessage {
+    pub document_id: felt252,
+    pub document_hash: felt252,
+    pub timestamp: u64,
+    pub signer: ContractAddress,
+    pub signature_level: felt252,
 }
 
 #[derive(Drop, Copy, Serde)]
-struct TypedData {
-    domain: Domain,
-    message: DocumentMessage,
+pub struct TypedData {
+    pub domain: Domain,
+    pub message: DocumentMessage,
 }

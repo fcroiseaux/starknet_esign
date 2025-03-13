@@ -1,12 +1,12 @@
 #[starknet::interface]
-trait IElectronicSignature<TContractState> {
+pub trait IElectronicSignature<TContractState> {
     fn sign_document(
         ref self: TContractState,
         document_id: felt252, 
         document_data: Array<felt252>,
         signature_level: felt252,
         validity_period: u64
-    ) -> super::super::utils::signature::DocumentSignature;
+    ) -> crate::utils::signature::DocumentSignature;
 
     fn verify_document_signature(
         self: @TContractState,
@@ -21,7 +21,7 @@ trait IElectronicSignature<TContractState> {
         self: @TContractState, 
         document_id: felt252, 
         signer: starknet::ContractAddress
-    ) -> super::super::utils::signature::DocumentSignature;
+    ) -> crate::utils::signature::DocumentSignature;
     
     fn hash_typed_data(
         self: @TContractState,

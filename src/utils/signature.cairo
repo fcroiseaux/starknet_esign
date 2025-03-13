@@ -2,13 +2,13 @@ use starknet::ContractAddress;
 
 // Document signature structure
 #[derive(Drop, Copy, Serde, starknet::Store)]
-struct DocumentSignature {
-    document_id: felt252,
-    document_hash: felt252,
-    signer_address: ContractAddress,
-    timestamp: u64,
-    signature_level: felt252,
-    is_revoked: bool,
-    expiration_time: u64,
-    nonce: u64, // Added for signature malleability protection
+pub struct DocumentSignature {
+    pub document_id: felt252,
+    pub document_hash: felt252,
+    pub signer_address: ContractAddress,
+    pub timestamp: u64,
+    pub signature_level: felt252,
+    pub is_revoked: bool,
+    pub expiration_time: u64,
+    pub nonce: u64, // Added for signature malleability protection
 }

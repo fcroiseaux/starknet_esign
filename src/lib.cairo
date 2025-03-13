@@ -1,25 +1,25 @@
 mod utils {
-    mod constants;
-    mod typed_data;
-    mod signature;
-    mod events;
+    pub mod constants;
+    pub mod typed_data;
+    pub mod signature;
+    pub mod events;
 }
 
 mod interfaces {
-    mod iesg;
+    pub mod iesg;
 }
 
 mod contracts {
-    mod esg;
+    pub mod esg;
 }
 
 mod tests {
-    mod test_esg;
+    pub mod test_esg;
 }
 
 // Re-export the main contract and interface
-use contracts::esg::ElectronicSignature;
-use interfaces::iesg::IElectronicSignature;
+pub use contracts::esg::ElectronicSignature;
+pub use interfaces::iesg::IElectronicSignature;
 
 // Make sure tests are picked up
 // This trick ensures test modules are included in the binary

@@ -5,10 +5,10 @@ use core::option::OptionTrait;
 use starknet::testing::set_caller_address;
 
 // Import contract and interfaces
-use super::super::contracts::esg::ElectronicSignature;
-use super::super::interfaces::iesg::IElectronicSignature;
-use super::super::contracts::esg::{QES_LEVEL, AES_LEVEL, SES_LEVEL};
-use super::super::utils::signature::DocumentSignature;
+use crate::contracts::esg::ElectronicSignature;
+use crate::interfaces::iesg::IElectronicSignature;
+use crate::contracts::esg::{QES_LEVEL, AES_LEVEL, SES_LEVEL};
+use crate::utils::signature::DocumentSignature;
 
 #[cfg(test)]
 mod tests {
@@ -17,9 +17,9 @@ mod tests {
     use core::traits::TryInto;
     use core::option::OptionTrait;
     use starknet::testing::set_caller_address;
-    use super::super::super::contracts::esg::ElectronicSignature;
-    use super::super::super::interfaces::iesg::IElectronicSignature;
-    use super::super::super::contracts::esg::{QES_LEVEL, AES_LEVEL, SES_LEVEL};
+    use crate::contracts::esg::ElectronicSignature;
+    use crate::interfaces::iesg::IElectronicSignature;
+    use crate::contracts::esg::{QES_LEVEL, AES_LEVEL, SES_LEVEL};
 
     // Helper function to create a contract address for testing
     fn contract_address_const(value: felt252) -> ContractAddress {

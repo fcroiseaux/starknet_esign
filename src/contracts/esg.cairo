@@ -5,7 +5,6 @@ use openzeppelin::introspection::src5::SRC5Component;
 use starknet::ContractAddress;
 use starknet::get_caller_address;
 use starknet::get_block_timestamp;
-use starknet::info::get_contract_address;
 use core::hash::LegacyHash;
 use core::traits::Into;
 use core::pedersen::pedersen;
@@ -17,15 +16,15 @@ use super::super::utils::signature::DocumentSignature;
 use super::super::utils::events::{DocumentSigned, SignatureRevoked};
 
 // Define constants directly in this module
-const QES_LEVEL: felt252 = 'QES'; // Qualified Electronic Signature
-const AES_LEVEL: felt252 = 'AES'; // Advanced Electronic Signature
-const SES_LEVEL: felt252 = 'SES'; // Simple Electronic Signature
+pub const QES_LEVEL: felt252 = 'QES'; // Qualified Electronic Signature
+pub const AES_LEVEL: felt252 = 'AES'; // Advanced Electronic Signature
+pub const SES_LEVEL: felt252 = 'SES'; // Simple Electronic Signature
 
 // Document size limit - approximately 5MB when each element is a felt252 (31 bytes)
-const MAX_DOCUMENT_SIZE: u32 = 170000;
+pub const MAX_DOCUMENT_SIZE: u32 = 170000;
 
 #[starknet::contract]
-mod ElectronicSignature {
+pub mod ElectronicSignature {
     // Import everything needed in the contract
     use core::array::ArrayTrait;
     use openzeppelin::access::ownable::OwnableComponent;
@@ -34,7 +33,10 @@ mod ElectronicSignature {
     use starknet::ContractAddress;
     use starknet::get_caller_address;
     use starknet::get_block_timestamp;
-    use starknet::info::get_contract_address;
+    use starknet::storage::StorageMapReadAccess;
+    use starknet::storage::StorageMapWriteAccess;
+    use starknet::storage::StoragePointerReadAccess;
+    use starknet::storage::StoragePointerWriteAccess;
     use core::hash::LegacyHash;
     use core::traits::Into;
     use core::pedersen::pedersen;
@@ -80,7 +82,7 @@ mod ElectronicSignature {
 
     // Constructor
     #[constructor]
-    fn constructor(
+    pub fn constructor(
         ref self: ContractState,
         initial_owner: ContractAddress,
         contract_name: felt252,
@@ -96,7 +98,7 @@ mod ElectronicSignature {
             name: contract_name,
             version: contract_version,
             chain_id: chain_id,
-            verifying_contract: get_contract_address(),
+            verifying_contract: starknet::get_contract_address(),
             salt: 0,
         };
         self.domain_separator.write(domain_value);
@@ -104,7 +106,7 @@ mod ElectronicSignature {
 
     // Contract functions
     #[abi(embed_v0)]
-    impl ElectronicSignatureImpl of super::IElectronicSignature<ContractState> {
+    pub impl ElectronicSignatureImpl of super::IElectronicSignature<ContractState> {
         // Check if a signature is expired
         fn is_signature_expired(
             self: @ContractState,
