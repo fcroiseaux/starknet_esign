@@ -97,10 +97,87 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
+        .wallet-section {
+            margin-bottom: 20px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 15px;
+        }
+        .wallet-info {
+            display: flex;
+            align-items: center;
+            margin-top: 10px;
+        }
+        .wallet-address {
+            font-family: monospace;
+            background: #f5f5f5;
+            padding: 5px 10px;
+            border-radius: 4px;
+            margin-left: 10px;
+            font-size: 14px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 200px;
+        }
+        .connect-btn {
+            background: #ff5c35;
+        }
+        .connect-btn:hover {
+            background: #e04722;
+        }
+        .disconnect-btn {
+            background: #757575;
+            margin-left: 10px;
+        }
+        .disconnect-btn:hover {
+            background: #616161;
+        }
+        .wallet-detail-item {
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+        .wallet-details h3 {
+            margin-top: 0;
+            margin-bottom: 10px;
+            font-size: 16px;
+            color: #555;
+        }
     </style>
+    <!-- Load Starknet.js -->
+    <script src="https://cdn.jsdelivr.net/npm/starknet@5.14.1/dist/starknet.js"></script>
 </head>
 <body>
     <h1>Starknet PDF Signature Tool</h1>
+    
+    <div class="card wallet-section">
+        <h2>Connect Your Wallet</h2>
+        <p>Connect your Argent wallet to sign documents on Starknet.</p>
+        <button id="connectWalletBtn" class="connect-btn">Connect Wallet</button>
+        <div id="walletInfo" style="display: none;">
+            <div class="wallet-info">
+                <span>Connected:</span>
+                <span id="walletAddress" class="wallet-address"></span>
+                <button id="disconnectWalletBtn" class="disconnect-btn">Disconnect</button>
+            </div>
+            <div id="walletDetails" style="margin-top: 15px;">
+                <h3>Wallet Details</h3>
+                <div class="wallet-detail-item">
+                    <strong>Network:</strong> <span id="walletNetwork">-</span>
+                </div>
+                <div class="wallet-detail-item">
+                    <strong>Chain ID:</strong> <span id="walletChainId">-</span>
+                </div>
+                <div class="wallet-detail-item">
+                    <strong>Wallet Provider:</strong> <span id="walletProviderName">-</span>
+                </div>
+                <div class="wallet-detail-item">
+                    <strong>Account Type:</strong> <span id="walletAccountType">-</span>
+                </div>
+                <div class="wallet-detail-item">
+                    <strong>Balance:</strong> <span id="walletBalance">-</span>
+                </div>
+            </div>
+        </div>
+    </div>
     
     <div class="card">
         <h2>Sign a PDF Document</h2>
@@ -152,19 +229,20 @@
     <div class="card">
         <h3>How It Works</h3>
         <ol>
+            <li>Connect your Argent wallet</li>
             <li>Select your PDF document</li>
             <li>Enter a unique document ID</li>
             <li>Click "Sign Document"</li>
-            <li>Confirm the transaction in your Starknet wallet</li>
+            <li>Confirm the transaction in your Argent wallet</li>
             <li>Wait for transaction confirmation</li>
             <li>View your signature details</li>
         </ol>
-        <p><strong>Note:</strong> This application requires a Starknet wallet and connection to the Starknet network.</p>
+        <p><strong>Note:</strong> This application requires an Argent wallet and connection to the Starknet network.</p>
     </div>
 
     <script type="module">
-        // Import your ES module bundle (you'll need to use webpack or similar to bundle your TypeScript)
-        import { signPdfWithStarknet } from './dist/pdf_sign.js';
+        // Import the browser-pdf-sign module (contains wallet connection and signing functionality)
+        import { signPdfWithStarknet } from './dist/browser-pdf-sign.js';
         
         // DOM Elements
         const fileInput = document.getElementById('fileInput');
@@ -173,6 +251,17 @@
         const signButton = document.getElementById('signButton');
         const statusDiv = document.getElementById('status');
         const signatureDetails = document.getElementById('signatureDetails');
+        const connectWalletBtn = document.getElementById('connectWalletBtn');
+        const disconnectWalletBtn = document.getElementById('disconnectWalletBtn');
+        const walletInfo = document.getElementById('walletInfo');
+        const walletAddress = document.getElementById('walletAddress');
+        
+        // Wallet details elements
+        const walletNetwork = document.getElementById('walletNetwork');
+        const walletChainId = document.getElementById('walletChainId');
+        const walletProviderName = document.getElementById('walletProviderName');
+        const walletAccountType = document.getElementById('walletAccountType');
+        const walletBalance = document.getElementById('walletBalance');
         
         // Results Elements
         const resultDocumentId = document.getElementById('resultDocumentId');
@@ -181,15 +270,18 @@
         const resultVerified = document.getElementById('resultVerified');
         const explorerLink = document.getElementById('explorerLink');
         
-        // Network configuration - update with your actual network
+        // Network configuration
         const NETWORK = 'testnet'; // or 'mainnet'
         const EXPLORER_URL = NETWORK === 'mainnet' 
             ? 'https://voyager.online/tx/' 
             : 'https://goerli.voyager.online/tx/';
         
-        // Enable/disable sign button based on input
+        // Store connected wallet
+        let wallet = null;
+        
+        // Enable/disable sign button based on input and wallet connection
         function updateSignButton() {
-            signButton.disabled = !fileInput.files.length || !documentIdInput.value.trim();
+            signButton.disabled = !wallet || !fileInput.files.length || !documentIdInput.value.trim();
         }
         
         fileInput.addEventListener('change', updateSignButton);
@@ -202,58 +294,539 @@
             statusDiv.style.display = 'block';
         }
         
+        // Get and display wallet details
+        async function updateWalletDetails(wallet, address) {
+            try {
+                console.log('Fetching wallet details for wallet object:', wallet);
+                
+                // Inspect wallet structure deeply for debugging
+                console.log('Deep inspection of wallet properties:');
+                try {
+                    // Log all top-level properties
+                    for (const key in wallet) {
+                        console.log(`wallet.${key}:`, typeof wallet[key], wallet[key]);
+                        
+                        // If it's an object, log its properties too
+                        if (wallet[key] && typeof wallet[key] === 'object' && !Array.isArray(wallet[key])) {
+                            for (const subKey in wallet[key]) {
+                                console.log(`wallet.${key}.${subKey}:`, typeof wallet[key][subKey], wallet[key][subKey]);
+                            }
+                        }
+                    }
+                } catch (err) {
+                    console.error('Error during deep inspection:', err);
+                }
+                
+                // 1. Try to determine the network/chain
+                let network = 'Unknown';
+                let chainId = 'Unknown';
+                
+                // Use the dedicated ArgentX network detection function
+                const networkInfo = await detectArgentXNetwork();
+                chainId = networkInfo.chainId;
+                network = networkInfo.network;
+                
+                // If we still don't have a network, try the generic detection methods
+                if (network === 'Unknown') {
+                    if (wallet.provider) {
+                        if (wallet.provider.chainId) {
+                            chainId = wallet.provider.chainId;
+                            network = getNetworkName(chainId);
+                        } else if (wallet.provider.baseUrl) {
+                            // Try to guess from provider URL
+                            const baseUrl = wallet.provider.baseUrl;
+                            if (baseUrl.includes('mainnet')) {
+                                network = 'Mainnet';
+                                chainId = 'mainnet-alpha';
+                            } else if (baseUrl.includes('goerli') || baseUrl.includes('testnet')) {
+                                network = 'Goerli Testnet';
+                                chainId = 'goerli-alpha';
+                            } else if (baseUrl.includes('sepolia')) {
+                                network = 'Sepolia Testnet';
+                                chainId = 'sepolia-alpha';
+                            }
+                        }
+                    } else if (wallet.chainId) {
+                        chainId = wallet.chainId;
+                        network = getNetworkName(chainId);
+                    }
+                }
+                
+                // 2. Determine wallet provider name
+                let providerName = 'Unknown';
+                
+                try {
+                    // Direct detection based on window.starknet properties
+                    if (typeof window.starknet !== 'undefined') {
+                        // Check for direct provider name
+                        if (window.starknet.walletName) {
+                            providerName = window.starknet.walletName;
+                        } 
+                        // Check for Argent identifier
+                        else if (window.starknet.isArgent === true) {
+                            providerName = 'Argent';
+                        } 
+                        // Check for Braavos identifier
+                        else if (window.starknet.isBraavos === true) {
+                            providerName = 'Braavos';
+                        }
+                        // Try to use version info
+                        else if (window.starknet.version) {
+                            const versionStr = window.starknet.version;
+                            console.log('Found StarkNet version:', versionStr);
+                            
+                            // Check if version string contains wallet info
+                            if (versionStr.toLowerCase().includes('argent')) {
+                                providerName = 'Argent';
+                            } else if (versionStr.toLowerCase().includes('braavos')) {
+                                providerName = 'Braavos';
+                            }
+                        }
+                    }
+                    
+                    // If still unknown, try loading detection based on DOM
+                    if (providerName === 'Unknown') {
+                        const argentXIcon = document.querySelector('img[alt="Argent X"]');
+                        const braavosIcon = document.querySelector('img[alt="Braavos"]');
+                        const argentButton = document.querySelector('button[data-wallet="argentX"]');
+                        const braavosButton = document.querySelector('button[data-wallet="braavos"]');
+                        
+                        if (argentXIcon || argentButton) {
+                            providerName = 'Argent';
+                        } else if (braavosIcon || braavosButton) {
+                            providerName = 'Braavos';
+                        }
+                    }
+                    
+                    // If still unknown, check for wallet metadata
+                    if (providerName === 'Unknown') {
+                        if (wallet.id) {
+                            providerName = wallet.id;
+                        } else if (wallet.name) {
+                            providerName = wallet.name;
+                        } else if (wallet.provider && wallet.provider.name) {
+                            providerName = wallet.provider.name;
+                        }
+                    }
+                    
+                    // Last resort: check if user has an ArgentX extension
+                    if (providerName === 'Unknown') {
+                        // If we're getting addresses but don't know the provider,
+                        // it's likely the wallet integration is working correctly but
+                        // we just can't identify which one it is.
+                        if (Array.isArray(wallet) && wallet.length > 0) {
+                            providerName = 'StarkNet Wallet';
+                        }
+                    }
+                } catch (err) {
+                    console.error('Error identifying wallet provider:', err);
+                }
+                
+                // 3. Try to get account type
+                let accountType = 'Unknown';
+                try {
+                    // Handle case where it's an array of addresses
+                    if (Array.isArray(wallet)) {
+                        // If we have connected via ArgentX, label it explicitly
+                        if (window.starknet && window.starknet.isArgent) {
+                            accountType = 'ArgentX Wallet';
+                        } else if (window.starknet && window.starknet.isBraavos) {
+                            accountType = 'Braavos Wallet';
+                        } else {
+                            accountType = 'Address Array';
+                        }
+                        
+                        // Add more specific wallet type if available
+                        if (window.starknet && window.starknet.account && window.starknet.account.type) {
+                            accountType += ` (${window.starknet.account.type})`;
+                        }
+                    } else if (wallet.account && wallet.account.constructor && wallet.account.constructor.name) {
+                        accountType = wallet.account.constructor.name;
+                    } else if (wallet.constructor && wallet.constructor.name) {
+                        accountType = wallet.constructor.name;
+                    }
+                    
+                    // If it's ArgentX, label it explicitly
+                    if (providerName === 'Argent') {
+                        if (accountType === 'Unknown' || accountType === 'Object') {
+                            accountType = 'ArgentX Wallet';
+                        }
+                    }
+                    
+                    // If we still don't know and starknet is available, use window.starknet type info
+                    if (accountType === 'Unknown' && window.starknet) {
+                        if (window.starknet.isArgent) {
+                            accountType = 'ArgentX Wallet';
+                        } else if (window.starknet.isBraavos) {
+                            accountType = 'Braavos Wallet';
+                        } else if (window.starknet.version) {
+                            accountType = `StarkNet v${window.starknet.version}`;
+                        }
+                    }
+                } catch (err) {
+                    console.error('Error getting account type:', err);
+                }
+                
+                // 4. Try to get balance
+                let balance = 'Unknown';
+                try {
+                    console.log('Attempting to get balance for address:', address);
+                    
+                    // Method 1: Using newer starknet.js RPC method
+                    if (window.starknet && window.starknet.provider) {
+                        try {
+                            // Try the call method which is more universally available
+                            const ethContractAddress = '0x049d36570d4e46f48e99674bd3fcc84644ddd6b96f7c741b1562b82f9e004dc7'; // ETH contract on StarkNet
+                            const balanceResult = await window.starknet.provider.callContract({
+                                contractAddress: ethContractAddress,
+                                entrypoint: 'balanceOf',
+                                calldata: [address]
+                            });
+                            
+                            console.log('Balance result from provider.callContract:', balanceResult);
+                            
+                            if (balanceResult && balanceResult.result && balanceResult.result.length > 0) {
+                                balance = formatEther(balanceResult.result[0]) + ' ETH';
+                            } else if (balanceResult && Array.isArray(balanceResult) && balanceResult.length > 0) {
+                                balance = formatEther(balanceResult[0]) + ' ETH';
+                            }
+                        } catch (err) {
+                            console.error('Error fetching balance with callContract:', err);
+                            
+                            // Fallback to older RPC methods
+                            try {
+                                if (typeof window.starknet.provider.getBalance === 'function') {
+                                    const balanceResult = await window.starknet.provider.getBalance({
+                                        address: address
+                                    });
+                                    
+                                    console.log('Balance result from getBalance:', balanceResult);
+                                    
+                                    if (balanceResult && balanceResult.result) {
+                                        balance = formatEther(balanceResult.result) + ' ETH';
+                                    } else if (balanceResult) {
+                                        balance = formatEther(balanceResult) + ' ETH';
+                                    }
+                                }
+                            } catch (err2) {
+                                console.error('Error fetching balance with getBalance:', err2);
+                            }
+                        }
+                    }
+                    
+                    // Method 2: Standard wallet methods if first method failed
+                    if (balance === 'Unknown') {
+                        // Try wallet-specific methods
+                        if (typeof wallet.getBalance === 'function') {
+                            try {
+                                const balanceResult = await wallet.getBalance();
+                                balance = balanceResult ? formatEther(balanceResult) + ' ETH' : 'Error';
+                            } catch (err) {
+                                console.error('Error calling wallet.getBalance:', err);
+                            }
+                        } else if (wallet.provider && typeof wallet.provider.getBalance === 'function') {
+                            try {
+                                const balanceResult = await wallet.provider.getBalance({
+                                    address: address,
+                                    blockIdentifier: 'latest'
+                                });
+                                balance = balanceResult ? formatEther(balanceResult) + ' ETH' : 'Error';
+                            } catch (err) {
+                                console.error('Error fetching balance from provider.getBalance:', err);
+                            }
+                        }
+                        
+                        // If still unknown, show placeholder
+                        if (balance === 'Unknown') {
+                            balance = 'Not Available';
+                        }
+                    }
+                } catch (err) {
+                    console.error('Error fetching balance:', err);
+                }
+                
+                // Update UI
+                walletNetwork.textContent = network;
+                walletChainId.textContent = chainId;
+                walletProviderName.textContent = providerName;
+                walletAccountType.textContent = accountType;
+                walletBalance.textContent = balance;
+                
+            } catch (error) {
+                console.error('Error updating wallet details:', error);
+                // Don't block the UI if we fail to get details
+            }
+        }
+        
+        // Helper to get network name from chain ID
+        function getNetworkName(chainId) {
+            const networks = {
+                'SN_MAIN': 'Mainnet',
+                'mainnet-alpha': 'Mainnet',
+                'SN_GOERLI': 'Goerli Testnet',
+                'goerli-alpha': 'Goerli Testnet',
+                'SN_SEPOLIA': 'Sepolia Testnet',
+                'sepolia-alpha': 'Sepolia Testnet'
+            };
+            
+            return networks[chainId] || chainId;
+        }
+        
+        // Function to detect ArgentX network (can be called directly)
+        async function detectArgentXNetwork() {
+            try {
+                if (window.starknet && window.starknet.provider) {
+                    // Method 1: Get chain ID
+                    try {
+                        const chainId = await window.starknet.provider.getChainId();
+                        if (chainId) {
+                            return {
+                                chainId: chainId,
+                                network: getNetworkName(chainId)
+                            };
+                        }
+                    } catch (err) {
+                        console.error('Error getting chainId:', err);
+                    }
+                    
+                    // Method 2: Check network property
+                    if (window.starknet.network) {
+                        return {
+                            chainId: window.starknet.network,
+                            network: getNetworkName(window.starknet.network)
+                        };
+                    }
+                    
+                    // Method 3: Try to extract from provider.baseUrl
+                    if (window.starknet.provider.baseUrl) {
+                        const baseUrl = window.starknet.provider.baseUrl;
+                        if (baseUrl.includes('mainnet')) {
+                            return {
+                                chainId: 'mainnet-alpha',
+                                network: 'Mainnet'
+                            };
+                        } else if (baseUrl.includes('goerli')) {
+                            return {
+                                chainId: 'goerli-alpha',
+                                network: 'Goerli Testnet'
+                            };
+                        } else if (baseUrl.includes('sepolia')) {
+                            return {
+                                chainId: 'sepolia-alpha',
+                                network: 'Sepolia Testnet'
+                            };
+                        }
+                    }
+                }
+            } catch (err) {
+                console.error('Error detecting ArgentX network:', err);
+            }
+            
+            return {
+                chainId: 'Unknown',
+                network: 'Unknown'
+            };
+        }
+        
+        // Format ether value
+        function formatEther(value) {
+            if (!value) return '0';
+            
+            // Convert to string if it's not already
+            const strValue = value.toString();
+            
+            // Check if the value is in hex
+            const isHex = strValue.startsWith('0x');
+            
+            // Convert to BigInt
+            let bigIntValue;
+            try {
+                bigIntValue = isHex ? BigInt(strValue) : BigInt(strValue);
+            } catch (e) {
+                return strValue;
+            }
+            
+            // Format with 18 decimals (ETH standard)
+            const divisor = BigInt(10 ** 18);
+            const integerPart = bigIntValue / divisor;
+            const fractionalPart = bigIntValue % divisor;
+            
+            // Format the fractional part to show a max of 6 decimals
+            let formattedFractional = fractionalPart.toString().padStart(18, '0');
+            formattedFractional = formattedFractional.substring(0, 6);
+            
+            // Only show fractional part if it's not all zeros
+            if (formattedFractional.replace(/0/g, '') === '') {
+                return integerPart.toString();
+            }
+            
+            return `${integerPart}.${formattedFractional}`;
+        }
+        
+        // Connect Wallet Function
+        connectWalletBtn.addEventListener('click', async () => {
+            try {
+                // Check if starknet.js is loaded
+                if (typeof window.starknet === 'undefined') {
+                    throw new Error('Starknet.js library not loaded. Please check your internet connection or reload the page.');
+                }
+                
+                showStatus('Connecting to Argent wallet...', 'info');
+                
+                // Try connecting with different methods based on StarkNet.js version
+                try {
+                    // StarkNet.js v4.x style
+                    wallet = await window.starknet.enable();
+                    console.log('Connected using starknet.enable()');
+                } catch (err) {
+                    console.error('Error with starknet.enable():', err);
+                    
+                    // Try alternative connection methods
+                    try {
+                        // StarkNet.js v5.x style
+                        if (typeof window.starknet.request === 'function') {
+                            await window.starknet.request({ method: 'starknet_requestAccounts' });
+                            wallet = window.starknet;
+                            console.log('Connected using starknet.request()');
+                        } else {
+                            throw new Error('No suitable connection method found');
+                        }
+                    } catch (err2) {
+                        console.error('Error with alternative connection methods:', err2);
+                        throw new Error('Failed to connect wallet: ' + err2.message);
+                    }
+                }
+                
+                if (!wallet) {
+                    throw new Error('No wallet found or connection rejected.');
+                }
+                
+                console.log('Connected wallet:', wallet);
+                
+                // Log the wallet object to see its structure
+                console.log('Connected wallet structure:', wallet);
+                
+                // Try to get wallet address from different possible properties
+                // ArgentX might use different properties based on version
+                let address;
+                
+                if (wallet.selectedAddress) {
+                    // StarkNet.js v4.x style
+                    address = wallet.selectedAddress;
+                    console.log('Found address in wallet.selectedAddress:', address);
+                } else if (wallet.account && wallet.account.address) {
+                    // StarkNet.js v5.x style with account object
+                    address = wallet.account.address;
+                    console.log('Found address in wallet.account.address:', address);
+                } else if (typeof wallet.getAccountAddress === 'function') {
+                    // Try to call a method to get the address
+                    try {
+                        address = await wallet.getAccountAddress();
+                        console.log('Found address from wallet.getAccountAddress():', address);
+                    } catch (err) {
+                        console.error('Error calling wallet.getAccountAddress():', err);
+                    }
+                } else if (Array.isArray(wallet.accounts) && wallet.accounts.length > 0) {
+                    // Some wallets provide an accounts array
+                    address = wallet.accounts[0];
+                    console.log('Found address in wallet.accounts[0]:', address);
+                } else {
+                    // Last resort - check all top-level properties
+                    console.log('Searching for address in wallet properties...');
+                    for (const prop in wallet) {
+                        if (typeof wallet[prop] === 'string' && 
+                            wallet[prop].startsWith('0x') && 
+                            wallet[prop].length > 40) {
+                            console.log(`Found potential address in wallet.${prop}:`, wallet[prop]);
+                            address = wallet[prop];
+                            break;
+                        }
+                    }
+                }
+                
+                if (!address) {
+                    throw new Error('Failed to get wallet address. Please check console for wallet structure.');
+                }
+                
+                // Update UI with basic address info
+                walletAddress.textContent = address;
+                walletInfo.style.display = 'block';
+                connectWalletBtn.style.display = 'none';
+                
+                // Get and display additional wallet details
+                await updateWalletDetails(wallet, address);
+                
+                showStatus('Wallet connected successfully!', 'success');
+                updateSignButton();
+                
+            } catch (error) {
+                console.error('Error connecting wallet:', error);
+                showStatus(`Error connecting wallet: ${error.message}`, 'error');
+            }
+        });
+        
+        // Disconnect Wallet Function
+        disconnectWalletBtn.addEventListener('click', () => {
+            // Reset wallet object
+            wallet = null;
+            
+            // Clear UI
+            walletInfo.style.display = 'none';
+            connectWalletBtn.style.display = 'block';
+            
+            // Clear wallet details
+            walletNetwork.textContent = '-';
+            walletChainId.textContent = '-';
+            walletProviderName.textContent = '-';
+            walletAccountType.textContent = '-';
+            walletBalance.textContent = '-';
+            
+            updateSignButton();
+            showStatus('Wallet disconnected', 'info');
+        });
+        
         // Sign button click handler
         signButton.addEventListener('click', async () => {
             try {
+                // Check if wallet is connected
+                if (!wallet) {
+                    showStatus('Please connect your wallet first', 'error');
+                    return;
+                }
+                
                 // Validate inputs
                 if (!fileInput.files.length) {
-                    showStatus('Please select a PDF file.', 'error');
+                    showStatus('Please select a PDF file', 'error');
                     return;
                 }
                 
                 if (!documentIdInput.value.trim()) {
-                    showStatus('Please enter a document ID.', 'error');
+                    showStatus('Please enter a document ID', 'error');
                     return;
                 }
                 
                 const file = fileInput.files[0];
                 const documentId = documentIdInput.value.trim();
+                const sigLevel = signatureLevel.value;
                 
                 // Show loading state
                 signButton.disabled = true;
                 signButton.innerHTML = '<span class="loader"></span> Signing...';
                 showStatus('Preparing to sign document...', 'info');
                 
-                // In a real implementation, you would:
-                // 1. Read the file as ArrayBuffer
-                // 2. Calculate the hash client-side or send to your backend
-                // 3. Use the Starknet.js library to sign with the wallet
-                
-                // For this demo, we'll simulate the process
-                showStatus('Calculating document hash...', 'info');
-                
                 // Read file as ArrayBuffer
                 const arrayBuffer = await file.arrayBuffer();
                 
-                // Convert ArrayBuffer to Uint8Array for hashing
-                const uint8Array = new Uint8Array(arrayBuffer);
+                showStatus('Calculating document hash...', 'info');
+                showStatus('Sending transaction to Starknet...', 'info');
                 
-                // Simulate hash calculation
-                showStatus('Connecting to Starknet wallet...', 'info');
-                
-                // Call your TypeScript function (in a real implementation)
-                // const result = await signPdfWithStarknet(uint8Array, documentId);
-                
-                // Simulate a delay for demonstration
-                await new Promise(resolve => setTimeout(resolve, 2000));
-                
-                // Simulate a successful result
-                const result = {
-                    document_id: documentId,
-                    transaction_hash: '0x' + Array.from({length: 64}, () => Math.floor(Math.random() * 16).toString(16)).join(''),
-                    signer_address: "0x0123456789abcdef0123456789abcdef0123456789abcdef",
-                    signature_verified: true
-                };
+                // Call the signPdfWithStarknet function
+                const result = await signPdfWithStarknet(
+                    arrayBuffer,
+                    documentId,
+                    sigLevel,
+                    wallet
+                );
                 
                 // Display the results
                 resultDocumentId.textContent = result.document_id;
@@ -271,7 +844,7 @@
                 showStatus(`Error signing document: ${error.message}`, 'error');
             } finally {
                 // Reset button state
-                signButton.disabled = false;
+                signButton.disabled = !wallet;
                 signButton.textContent = 'Sign Document';
             }
         });

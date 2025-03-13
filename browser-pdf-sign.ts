@@ -1,5 +1,12 @@
 import { Account, Contract, RpcProvider, shortString, constants, ec } from 'starknet';
 
+// Add typings for window object to include Starknet
+declare global {
+  interface Window {
+    starknet: any;
+  }
+}
+
 // Constants - replace with your actual values
 const CONTRACT_ADDRESS = "0x01234567890123456789012345678901234567890123456789";
 const NODE_URL = "http://localhost:5050"; // Or mainnet: "https://alpha-mainnet.starknet.io"
@@ -61,8 +68,20 @@ export async function signPdfWithStarknet(
     // Convert hash to an array of felt252 values
     const documentData = [pdfHash];
     
-    // Get provider from wallet
-    const provider = starknetWallet.provider;
+    // Get provider from wallet, handling different wallet structures
+    let provider;
+    
+    // Check if provider is directly available
+    if (starknetWallet.provider) {
+      provider = starknetWallet.provider;
+    } else if (starknetWallet.account && starknetWallet.account.provider) {
+      // Some wallets have provider within account object
+      provider = starknetWallet.account.provider;
+    } else {
+      // If no provider found, create a default provider
+      console.log("No provider found in wallet, creating default provider...");
+      provider = new RpcProvider({ nodeUrl: NODE_URL });
+    }
     
     // Get contract ABI (in a real implementation, you'd fetch this)
     const contractInterface = [
@@ -95,7 +114,14 @@ export async function signPdfWithStarknet(
       CONTRACT_ADDRESS,
       provider
     );
-    contract.connect(starknetWallet);
+    // Handle different wallet connection types (Argent or other wallets)
+    if (starknetWallet.account) {
+      // Connect with account property (newer wallet style)
+      contract.connect(starknetWallet.account);
+    } else {
+      // Connect with the wallet directly (older wallet style)
+      contract.connect(starknetWallet);
+    }
     
     // Determine signature level
     let sigLevelValue: bigint;
@@ -134,9 +160,43 @@ export async function signPdfWithStarknet(
     
     // Verify signature
     console.log("Verifying signature...");
+    // Get wallet address based on wallet type, with more exhaustive checks
+    let walletAddress;
+    
+    if (starknetWallet.selectedAddress) {
+      walletAddress = starknetWallet.selectedAddress;
+    } else if (starknetWallet.account?.address) {
+      walletAddress = starknetWallet.account.address;
+    } else if (starknetWallet.address) {
+      walletAddress = starknetWallet.address;
+    } else if (Array.isArray(starknetWallet.accounts) && starknetWallet.accounts.length > 0) {
+      walletAddress = starknetWallet.accounts[0];
+    } else if (typeof starknetWallet.getAccountAddress === 'function') {
+      try {
+        walletAddress = await starknetWallet.getAccountAddress();
+      } catch (err) {
+        console.error("Error calling getAccountAddress:", err);
+      }
+    } else {
+      // Last resort - look for any property that might be an address
+      for (const prop in starknetWallet) {
+        if (typeof starknetWallet[prop] === 'string' && 
+            starknetWallet[prop].startsWith('0x') && 
+            starknetWallet[prop].length > 40) {
+          console.log(`Using ${prop} as wallet address:`, starknetWallet[prop]);
+          walletAddress = starknetWallet[prop];
+          break;
+        }
+      }
+    }
+    
+    if (!walletAddress) {
+      throw new Error("Could not determine wallet address from wallet object");
+    }
+    
     const verification = await contract.call("verify_document_signature", [
       documentIdFelt,
-      starknetWallet.address,
+      walletAddress,
       documentData
     ]);
     
@@ -154,7 +214,7 @@ export async function signPdfWithStarknet(
     return {
       document_id: documentId,
       transaction_hash: signResult.transaction_hash,
-      signer_address: starknetWallet.address,
+      signer_address: walletAddress,
       signature_verified: isValid
     };
   } catch (error) {
