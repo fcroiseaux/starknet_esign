@@ -1,0 +1,8 @@
+# Visit https://foundry-rs.github.io/starknet-foundry/appendix/snfoundry-toml.html
+# and https://foundry-rs.github.io/starknet-foundry/projects/configuration.html for more information
+
+[profile.default]
+src = "src"
+test = "src/tests"
+out = "target"
+
