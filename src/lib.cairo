@@ -28,15 +28,16 @@ mod contracts {
     pub mod esg;
 }
 
+
+// Re-export the main contract and interface for easier imports by consumers
+pub use contracts::esg::ElectronicSignature;
+pub use interfaces::iesg::IElectronicSignature;
+
 /// Test modules for verifying functionality
 mod tests {
     /// Tests for the Electronic Signature contract
     pub mod test_esg;
 }
-
-// Re-export the main contract and interface for easier imports by consumers
-pub use contracts::esg::ElectronicSignature;
-pub use interfaces::iesg::IElectronicSignature;
 
 // Make sure tests are picked up by the Cairo test runner
 // This trick ensures test modules are included in the binary even in release builds
