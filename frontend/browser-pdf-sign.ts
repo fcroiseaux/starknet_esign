@@ -1,7 +1,7 @@
 import { Contract, RpcProvider } from 'starknet';
 
 // Import core modules
-import { SignatureResult, SignatureLevel } from './src/core/types';
+import { SignatureResult, SignatureLevel, VerificationResult } from './src/core/types';
 import { CONTRACT_CONFIG, NETWORKS, SIGNATURE_LEVELS } from './src/core/constants';
 import { signDocument } from './src/core/signature';
 
@@ -10,7 +10,8 @@ import {
   calculateDocumentHash, 
   fetchContractABI, 
   getProviderFromWallet, 
-  connectWalletToContract 
+  connectWalletToContract,
+  verifySignature
 } from './src/adapters/browser';
 
 // Add typings for window object to include StarkNet wallet
@@ -141,5 +142,66 @@ export async function signPdfWithStarknet(
   } catch (error) {
     console.error("Error signing document:", error);
     throw new Error(`Error signing document: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
+/**
+ * Verify a PDF document signature on StarkNet
+ * 
+ * @param documentId - ID of the document to verify
+ * @param signerAddress - Address of the claimed signer
+ * @param pdfData - ArrayBuffer containing the PDF data to verify
+ * @param starknetWallet - Optional Connected StarkNet wallet object
+ * @returns Object containing verification result and details
+ */
+export async function verifyPdfSignature(
+  documentId: string,
+  signerAddress: string,
+  pdfData: ArrayBuffer,
+  starknetWallet?: any
+): Promise<VerificationResult> {
+  try {
+    // Calculate document hash
+    console.log("Calculating document hash for verification...");
+    const documentHash = await calculateDocumentHash(pdfData);
+    console.log(`Document hash: 0x${documentHash.toString(16)}`);
+    
+    // Load contract ABI
+    const contractABI = await fetchContractABI(CONFIG.ABI_PATH);
+    
+    // Use wallet's provider if provided, otherwise use a default provider
+    const network = CONFIG.NETWORK[CONFIG.ACTIVE_NETWORK as keyof typeof CONFIG.NETWORK];
+    let provider: RpcProvider;
+    
+    try {
+      if (starknetWallet) {
+        provider = getProviderFromWallet(starknetWallet, network.nodeUrl);
+      } else {
+        // Create a read-only provider using the network's node URL
+        console.log("Creating new RpcProvider with URL:", network.nodeUrl);
+        provider = new RpcProvider({ nodeUrl: network.nodeUrl });
+      }
+    } catch (error) {
+      console.warn("Error creating provider:", error);
+      console.log("Creating fallback provider object");
+      
+      // Create a minimal provider that will trigger the fallback contract implementation
+      provider = {
+        nodeUrl: network.nodeUrl
+      } as any;
+    }
+    
+    // Call the verification function
+    return await verifySignature(
+      documentId,
+      signerAddress,
+      documentHash,
+      contractABI,
+      CONFIG.CONTRACT_ADDRESS,
+      provider
+    );
+  } catch (error) {
+    console.error("Error verifying document:", error);
+    throw new Error(`Error verifying document: ${error instanceof Error ? error.message : String(error)}`);
   }
 }

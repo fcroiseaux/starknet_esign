@@ -33,7 +33,7 @@ export const CONTRACT_CONFIG: ContractConfig = {
   address: "0x0784ba229bb245ebf3322f9cb637d67551afd677fe47aae6ad46ddb3818f7ed7",
   
   // Default provider URL (can be overridden by environment-specific config)
-  providerUrl: "https://starknet-sepolia.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161",
+  providerUrl: "https://free-rpc.nethermind.io/sepolia-juno",
   
   // Default validity period
   defaultValidityPeriod: DEFAULT_VALIDITY_PERIOD
@@ -44,13 +44,13 @@ export const CONTRACT_CONFIG: ContractConfig = {
  */
 export const NETWORKS: Record<string, NetworkConfig> = {
   SEPOLIA: {
-    nodeUrl: "https://starknet-sepolia.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161",
+    nodeUrl: "https://free-rpc.nethermind.io/sepolia-juno",
     explorerUrl: "https://sepolia.voyager.online/tx/",
     chainId: "SN_SEPOLIA",
     name: "StarkNet Sepolia"
   },
   MAINNET: {
-    nodeUrl: "https://starknet-mainnet.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161",
+    nodeUrl: "https://free-rpc.nethermind.io/mainnet-juno", 
     explorerUrl: "https://voyager.online/tx/",
     chainId: "SN_MAIN",
     name: "StarkNet Mainnet"

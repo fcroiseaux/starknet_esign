@@ -314,7 +314,7 @@ export async function signDocument(
             try {
               console.log("Trying alternative provider for transaction confirmation");
               const backupProvider = new RpcProvider({ 
-                nodeUrl: "https://starknet-sepolia.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161" 
+                nodeUrl: "https://free-rpc.nethermind.io/sepolia-juno" 
               });
               return await backupProvider.waitForTransaction(signResult.transaction_hash);
             } catch (backupErr) {

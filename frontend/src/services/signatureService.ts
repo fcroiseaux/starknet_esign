@@ -1,4 +1,4 @@
-import { signPdfWithStarknet } from '../../browser-pdf-sign';
+import { signPdfWithStarknet, verifyPdfSignature } from '../../browser-pdf-sign';
 import type { SignatureLevel } from '../core/types';
 
 export interface SignatureResult {
@@ -7,6 +7,16 @@ export interface SignatureResult {
   signer_address: string;
   signature_verified: boolean;
   monitored?: boolean;
+}
+
+export interface VerificationResult {
+  isValid: boolean;
+  details?: {
+    signatureLevel?: string;
+    timestamp?: Date;
+    expiration?: Date;
+    isRevoked?: boolean;
+  };
 }
 
 /**
@@ -55,5 +65,33 @@ export async function signDocument(
   } catch (error) {
     console.error("Error signing document:", error);
     throw new Error(`Error signing document: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
+/**
+ * Verify a document signature on StarkNet
+ * 
+ * @param documentId Document ID from the original signature
+ * @param signerAddress Original signer's address
+ * @param pdfData PDF file data as ArrayBuffer
+ * @param starknetWallet Connected StarkNet wallet object (optional, will use provider only)
+ * @returns Verification result with validity status and details
+ */
+export async function verifySignature(
+  documentId: string,
+  signerAddress: string,
+  pdfData: ArrayBuffer,
+  starknetWallet?: any
+): Promise<VerificationResult> {
+  try {
+    return await verifyPdfSignature(
+      documentId,
+      signerAddress,
+      pdfData,
+      starknetWallet
+    );
+  } catch (error) {
+    console.error("Error verifying signature:", error);
+    throw new Error(`Error verifying signature: ${error instanceof Error ? error.message : String(error)}`);
   }
 }

@@ -17,6 +17,19 @@ export interface SignatureResult {
 }
 
 /**
+ * Result of a signature verification operation
+ */
+export interface VerificationResult {
+  isValid: boolean;
+  details?: {
+    signatureLevel?: string;
+    timestamp?: Date;
+    expiration?: Date;
+    isRevoked?: boolean;
+  };
+}
+
+/**
  * Configuration for contract interaction
  */
 export interface ContractConfig {

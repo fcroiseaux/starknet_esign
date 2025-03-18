@@ -174,8 +174,17 @@ const SignatureForm: React.FC = () => {
       {signatureResult && (
         <div className="card signature-details">
           <h2>Signature Details</h2>
-          <div>
+          <div className="copyable-field">
             <strong>Document ID:</strong> <span>{signatureResult.document_id}</span>
+            <button 
+              className="copy-button"
+              onClick={() => {
+                navigator.clipboard.writeText(signatureResult.document_id);
+                alert('Document ID copied to clipboard!');
+              }}
+            >
+              Copy
+            </button>
           </div>
           <div>
             <strong>Transaction Hash:</strong> <span>{signatureResult.transaction_hash}</span>

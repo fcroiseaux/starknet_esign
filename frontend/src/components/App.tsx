@@ -1,8 +1,11 @@
-import React from 'react';
+import React, { useState } from 'react';
 import WalletConnection from './WalletConnection';
 import SignatureForm from './SignatureForm';
+import VerifySignature from './VerifySignature';
 
 const App: React.FC = () => {
+  const [activeTab, setActiveTab] = useState<'sign' | 'verify'>('sign');
+  
   return (
     <div className="page-container">
       {/* Left Sidebar for Wallet Connection */}
@@ -12,7 +15,26 @@ const App: React.FC = () => {
         </div>
         
         <div className="nav-links">
-          <a href="#" className="active">Sign Document</a>
+          <a 
+            href="#" 
+            className={activeTab === 'sign' ? 'active' : ''}
+            onClick={(e) => {
+              e.preventDefault();
+              setActiveTab('sign');
+            }}
+          >
+            Sign Document
+          </a>
+          <a 
+            href="#" 
+            className={activeTab === 'verify' ? 'active' : ''}
+            onClick={(e) => {
+              e.preventDefault();
+              setActiveTab('verify');
+            }}
+          >
+            Verify Signature
+          </a>
         </div>
         
         <WalletConnection />
@@ -20,8 +42,17 @@ const App: React.FC = () => {
       
       {/* Main Content */}
       <div className="main-content">
-        <h1>Sign PDF Document</h1>
-        <SignatureForm />
+        {activeTab === 'sign' ? (
+          <>
+            <h1>Sign PDF Document</h1>
+            <SignatureForm />
+          </>
+        ) : (
+          <>
+            <h1>Verify Document Signature</h1>
+            <VerifySignature />
+          </>
+        )}
       </div>
     </div>
   );
