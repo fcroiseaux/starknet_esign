@@ -1,0 +1,421 @@
+[
+  {
+    "type": "impl",
+    "name": "ElectronicSignatureImpl",
+    "interface_name": "starknet_esign::interfaces::iesg::IElectronicSignature"
+  },
+  {
+    "type": "enum",
+    "name": "core::bool",
+    "variants": [
+      {
+        "name": "False",
+        "type": "()"
+      },
+      {
+        "name": "True",
+        "type": "()"
+      }
+    ]
+  },
+  {
+    "type": "struct",
+    "name": "starknet_esign::utils::signature::DocumentSignature",
+    "members": [
+      {
+        "name": "document_id",
+        "type": "core::felt252"
+      },
+      {
+        "name": "document_hash",
+        "type": "core::felt252"
+      },
+      {
+        "name": "signer_address",
+        "type": "core::starknet::contract_address::ContractAddress"
+      },
+      {
+        "name": "timestamp",
+        "type": "core::integer::u64"
+      },
+      {
+        "name": "signature_level",
+        "type": "core::felt252"
+      },
+      {
+        "name": "is_revoked",
+        "type": "core::bool"
+      },
+      {
+        "name": "expiration_time",
+        "type": "core::integer::u64"
+      },
+      {
+        "name": "nonce",
+        "type": "core::integer::u64"
+      }
+    ]
+  },
+  {
+    "type": "interface",
+    "name": "starknet_esign::interfaces::iesg::IElectronicSignature",
+    "items": [
+      {
+        "type": "function",
+        "name": "sign_document",
+        "inputs": [
+          {
+            "name": "document_data",
+            "type": "core::array::Array::<core::felt252>"
+          },
+          {
+            "name": "signature_level",
+            "type": "core::felt252"
+          },
+          {
+            "name": "validity_period",
+            "type": "core::integer::u64"
+          }
+        ],
+        "outputs": [
+          {
+            "type": "(core::felt252, starknet_esign::utils::signature::DocumentSignature)"
+          }
+        ],
+        "state_mutability": "external"
+      },
+      {
+        "type": "function",
+        "name": "verify_document_signature",
+        "inputs": [
+          {
+            "name": "document_id",
+            "type": "core::felt252"
+          },
+          {
+            "name": "signer",
+            "type": "core::starknet::contract_address::ContractAddress"
+          },
+          {
+            "name": "document_data",
+            "type": "core::array::Array::<core::felt252>"
+          }
+        ],
+        "outputs": [
+          {
+            "type": "core::bool"
+          }
+        ],
+        "state_mutability": "view"
+      },
+      {
+        "type": "function",
+        "name": "revoke_signature",
+        "inputs": [
+          {
+            "name": "document_id",
+            "type": "core::felt252"
+          }
+        ],
+        "outputs": [],
+        "state_mutability": "external"
+      },
+      {
+        "type": "function",
+        "name": "get_signature",
+        "inputs": [
+          {
+            "name": "document_id",
+            "type": "core::felt252"
+          },
+          {
+            "name": "signer",
+            "type": "core::starknet::contract_address::ContractAddress"
+          }
+        ],
+        "outputs": [
+          {
+            "type": "starknet_esign::utils::signature::DocumentSignature"
+          }
+        ],
+        "state_mutability": "view"
+      },
+      {
+        "type": "function",
+        "name": "hash_typed_data",
+        "inputs": [
+          {
+            "name": "document_id",
+            "type": "core::felt252"
+          },
+          {
+            "name": "document_hash",
+            "type": "core::felt252"
+          },
+          {
+            "name": "signer",
+            "type": "core::starknet::contract_address::ContractAddress"
+          },
+          {
+            "name": "signature_level",
+            "type": "core::felt252"
+          }
+        ],
+        "outputs": [
+          {
+            "type": "core::felt252"
+          }
+        ],
+        "state_mutability": "view"
+      },
+      {
+        "type": "function",
+        "name": "is_signature_expired",
+        "inputs": [
+          {
+            "name": "document_id",
+            "type": "core::felt252"
+          },
+          {
+            "name": "signer",
+            "type": "core::starknet::contract_address::ContractAddress"
+          }
+        ],
+        "outputs": [
+          {
+            "type": "core::bool"
+          }
+        ],
+        "state_mutability": "view"
+      }
+    ]
+  },
+  {
+    "type": "impl",
+    "name": "OwnableImpl",
+    "interface_name": "openzeppelin_access::ownable::interface::IOwnable"
+  },
+  {
+    "type": "interface",
+    "name": "openzeppelin_access::ownable::interface::IOwnable",
+    "items": [
+      {
+        "type": "function",
+        "name": "owner",
+        "inputs": [],
+        "outputs": [
+          {
+            "type": "core::starknet::contract_address::ContractAddress"
+          }
+        ],
+        "state_mutability": "view"
+      },
+      {
+        "type": "function",
+        "name": "transfer_ownership",
+        "inputs": [
+          {
+            "name": "new_owner",
+            "type": "core::starknet::contract_address::ContractAddress"
+          }
+        ],
+        "outputs": [],
+        "state_mutability": "external"
+      },
+      {
+        "type": "function",
+        "name": "renounce_ownership",
+        "inputs": [],
+        "outputs": [],
+        "state_mutability": "external"
+      }
+    ]
+  },
+  {
+    "type": "impl",
+    "name": "SRC5Impl",
+    "interface_name": "openzeppelin_introspection::interface::ISRC5"
+  },
+  {
+    "type": "interface",
+    "name": "openzeppelin_introspection::interface::ISRC5",
+    "items": [
+      {
+        "type": "function",
+        "name": "supports_interface",
+        "inputs": [
+          {
+            "name": "interface_id",
+            "type": "core::felt252"
+          }
+        ],
+        "outputs": [
+          {
+            "type": "core::bool"
+          }
+        ],
+        "state_mutability": "view"
+      }
+    ]
+  },
+  {
+    "type": "constructor",
+    "name": "constructor",
+    "inputs": [
+      {
+        "name": "initial_owner",
+        "type": "core::starknet::contract_address::ContractAddress"
+      },
+      {
+        "name": "contract_name",
+        "type": "core::felt252"
+      },
+      {
+        "name": "contract_version",
+        "type": "core::felt252"
+      },
+      {
+        "name": "chain_id",
+        "type": "core::felt252"
+      }
+    ]
+  },
+  {
+    "type": "event",
+    "name": "starknet_esign::utils::events::DocumentSigned",
+    "kind": "struct",
+    "members": [
+      {
+        "name": "document_id",
+        "type": "core::felt252",
+        "kind": "data"
+      },
+      {
+        "name": "document_hash",
+        "type": "core::felt252",
+        "kind": "data"
+      },
+      {
+        "name": "signer",
+        "type": "core::starknet::contract_address::ContractAddress",
+        "kind": "data"
+      },
+      {
+        "name": "timestamp",
+        "type": "core::integer::u64",
+        "kind": "data"
+      },
+      {
+        "name": "signature_level",
+        "type": "core::felt252",
+        "kind": "data"
+      }
+    ]
+  },
+  {
+    "type": "event",
+    "name": "starknet_esign::utils::events::SignatureRevoked",
+    "kind": "struct",
+    "members": [
+      {
+        "name": "document_id",
+        "type": "core::felt252",
+        "kind": "data"
+      },
+      {
+        "name": "signer",
+        "type": "core::starknet::contract_address::ContractAddress",
+        "kind": "data"
+      },
+      {
+        "name": "timestamp",
+        "type": "core::integer::u64",
+        "kind": "data"
+      }
+    ]
+  },
+  {
+    "type": "event",
+    "name": "openzeppelin_access::ownable::ownable::OwnableComponent::OwnershipTransferred",
+    "kind": "struct",
+    "members": [
+      {
+        "name": "previous_owner",
+        "type": "core::starknet::contract_address::ContractAddress",
+        "kind": "key"
+      },
+      {
+        "name": "new_owner",
+        "type": "core::starknet::contract_address::ContractAddress",
+        "kind": "key"
+      }
+    ]
+  },
+  {
+    "type": "event",
+    "name": "openzeppelin_access::ownable::ownable::OwnableComponent::OwnershipTransferStarted",
+    "kind": "struct",
+    "members": [
+      {
+        "name": "previous_owner",
+        "type": "core::starknet::contract_address::ContractAddress",
+        "kind": "key"
+      },
+      {
+        "name": "new_owner",
+        "type": "core::starknet::contract_address::ContractAddress",
+        "kind": "key"
+      }
+    ]
+  },
+  {
+    "type": "event",
+    "name": "openzeppelin_access::ownable::ownable::OwnableComponent::Event",
+    "kind": "enum",
+    "variants": [
+      {
+        "name": "OwnershipTransferred",
+        "type": "openzeppelin_access::ownable::ownable::OwnableComponent::OwnershipTransferred",
+        "kind": "nested"
+      },
+      {
+        "name": "OwnershipTransferStarted",
+        "type": "openzeppelin_access::ownable::ownable::OwnableComponent::OwnershipTransferStarted",
+        "kind": "nested"
+      }
+    ]
+  },
+  {
+    "type": "event",
+    "name": "openzeppelin_introspection::src5::SRC5Component::Event",
+    "kind": "enum",
+    "variants": []
+  },
+  {
+    "type": "event",
+    "name": "starknet_esign::contracts::esg::ElectronicSignature::Event",
+    "kind": "enum",
+    "variants": [
+      {
+        "name": "DocumentSigned",
+        "type": "starknet_esign::utils::events::DocumentSigned",
+        "kind": "nested"
+      },
+      {
+        "name": "SignatureRevoked",
+        "type": "starknet_esign::utils::events::SignatureRevoked",
+        "kind": "nested"
+      },
+      {
+        "name": "OwnableEvent",
+        "type": "openzeppelin_access::ownable::ownable::OwnableComponent::Event",
+        "kind": "nested"
+      },
+      {
+        "name": "SRC5Event",
+        "type": "openzeppelin_introspection::src5::SRC5Component::Event",
+        "kind": "nested"
+      }
+    ]
+  }
+]

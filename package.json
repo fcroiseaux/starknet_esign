@@ -1,0 +1,31 @@
+{
+  "name": "starknet-esign",
+  "version": "1.0.0",
+  "description": "Sign PDFs with Starknet addresses",
+  "main": "dist/pdf_sign.js",
+  "scripts": {
+    "build": "tsc && webpack",
+    "start": "webpack serve --open",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "crypto": "^1.0.1",
+    "starknet": "^6.23.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.17.24",
+    "buffer": "^6.0.3",
+    "crypto-browserify": "^3.12.1",
+    "path-browserify": "^1.0.1",
+    "process": "^0.11.10",
+    "stream-browserify": "^3.0.0",
+    "ts-loader": "^9.4.3",
+    "typescript": "^5.0.4",
+    "util": "^0.12.5",
+    "vm-browserify": "^1.1.2",
+    "webpack": "^5.85.0",
+    "webpack-cli": "^5.1.1",
+    "webpack-dev-server": "^4.15.0"
+  },
+  "packageManager": "pnpm@10.5.2+sha512.da9dc28cd3ff40d0592188235ab25d3202add8a207afbedc682220e4a0029ffbff4562102b9e6e46b4e3f9e8bd53e6d05de48544b0c57d4b0179e22c76d1199b"
+}

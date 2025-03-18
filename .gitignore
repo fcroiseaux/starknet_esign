@@ -1,0 +1,14 @@
+target
+# Dependency directories
+node_modules/
+# Build output
+dist/
+.scarb/
+# Editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+# OS files
+.DS_Store
+
