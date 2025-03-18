@@ -1,181 +1,203 @@
-# StarkNet Electronic Signature (StarkNet eSign)
+# StarkNet eSign
 
-A decentralized application for creating and verifying electronic signatures for PDF documents on StarkNet.
+A blockchain-based electronic signature platform built on StarkNet that provides legally compliant document signing and verification.
 
 ## Overview
 
-StarkNet eSign is a secure electronic signature solution that leverages the security and transparency of StarkNet, a Layer 2 scaling solution for Ethereum. It enables users to create cryptographically verifiable signatures for PDF documents with different levels of security based on the European eIDAS regulation.
+StarkNet eSign is a decentralized application (dApp) that enables secure document signing and verification using the StarkNet blockchain. The platform implements the European eIDAS regulation signature levels, providing a legally compliant framework for electronic signatures with different security levels.
 
-## Features
+## Key Features
 
-- **Document Signing**: Sign PDF documents with your StarkNet wallet
-- **Signature Verification**: Verify document signatures on-chain
-- **Security Levels**: Support for different eIDAS signature levels (SES, AES, QES)
-- **Automatic Document ID**: Secure automatic generation of unique document IDs
-- **Tamper Detection**: Cryptographic verification of document integrity
-- **Expiration Support**: Configurable validity periods for signatures
-- **Revocation**: Ability to revoke signatures if needed
+- **Blockchain-Backed Signatures**: Immutable proof of document signatures stored on StarkNet
+- **eIDAS Compliance**: Three signature security levels following European regulations:
+  - **SES (Simple Electronic Signature)**: Basic signature for low-risk scenarios
+  - **AES (Advanced Electronic Signature)**: Enhanced security with signer authentication
+  - **QES (Qualified Electronic Signature)**: Highest security level, legally equivalent to handwritten signatures
+- **Document Privacy**: Only document hashes are stored on-chain, not the actual content
+- **Multi-Wallet Support**: Compatible with ArgentX and Braavos StarkNet wallets
+- **Signature Lifecycle Management**: Includes expiration dates and revocation capabilities
+- **Tamper Detection**: Cryptographic verification that documents haven't been modified
+- **Modern React UI**: User-friendly interface for signing and verifying documents
 
 ## Architecture
 
-The application consists of three main components:
+StarkNet eSign follows a modern blockchain architecture with two primary components:
 
-1. **Smart Contract**: A Cairo contract deployed on StarkNet that handles the signature logic and storage
-2. **Browser Client**: A TypeScript/HTML client for connecting wallets and signing documents in the browser
-3. **Node.js Client**: A TypeScript client for server-side document signing
+1. **Smart Contract Layer**: Cairo smart contracts deployed on StarkNet that handle:
+   - Document signature creation and storage
+   - Cryptographic verification
+   - Signature lifecycle management
+
+2. **Frontend Layer**: React-based web application that provides:
+   - Wallet connection and management
+   - Document hash generation
+   - Interaction with smart contracts
+   - User interface for signing and verification
 
 ## Project Structure
 
 ```
 starknet_esign/
-├── abi/                    # Contract ABI files
-├── frontend/               # Web interface files
-│   ├── browser-pdf-sign.ts # Browser-specific integration
-│   ├── index.html          # Web user interface
-│   ├── pdf_sign.ts         # Node.js client
-│   ├── src/                # TypeScript source files
-│   │   ├── adapters/       # Platform-specific adapters
-│   │   └── core/           # Core business logic
-│   └── webpack.config.js   # Frontend build configuration
-├── src/                    # Cairo smart contract source code
-│   ├── contracts/          # Main contract implementation
-│   ├── interfaces/         # Contract interfaces
-│   ├── tests/              # Contract tests
-│   └── utils/              # Cairo utilities
-├── Scarb.toml              # Cairo project configuration
-└── scripts/                # Deployment and utility scripts
-    ├── declarecontract.sh  # Declare contract on StarkNet
-    ├── deploycontract.sh   # Deploy contract on StarkNet
-    └── generate_abi.sh     # Generate ABI from compiled contract
+│
+├── src/                                # Cairo smart contract code
+│   ├── contracts/                      # Contract implementations
+│   │   └── esg.cairo                   # Electronic Signature main contract
+│   ├── interfaces/                     # Contract interfaces
+│   │   └── iesg.cairo                  # Electronic Signature interface
+│   ├── tests/                          # Contract test suite
+│   │   └── test_esg.cairo              # Contract tests
+│   ├── utils/                          # Utility modules
+│   │   ├── constants.cairo             # Contract constants
+│   │   ├── events.cairo                # Event definitions
+│   │   ├── signature.cairo             # Signature utilities
+│   │   └── typed_data.cairo            # EIP-712 style typed data
+│   └── lib.cairo                       # Library exports
+│
+├── frontend/                           # React web application
+│   ├── src/                            # Frontend source code
+│   │   ├── components/                 # React components
+│   │   │   ├── App.tsx                 # Main application component
+│   │   │   ├── SignatureForm.tsx       # Document signing form
+│   │   │   ├── VerifySignature.tsx     # Signature verification component
+│   │   │   └── WalletConnection.tsx    # Wallet connection component
+│   │   ├── services/                   # Service layer
+│   │   │   ├── signatureService.ts     # Signature operations service
+│   │   │   └── walletService.ts        # Wallet management service
+│   │   ├── hooks/                      # Custom React hooks
+│   │   │   └── useWallet.ts            # Wallet state management hook
+│   │   ├── adapters/                   # Platform adapters
+│   │   │   ├── browser.ts              # Browser-specific implementations
+│   │   │   └── node.ts                 # Node.js specific implementations
+│   │   ├── core/                       # Core business logic
+│   │   │   ├── constants.ts            # Application constants
+│   │   │   ├── signature.ts            # Signature handling logic
+│   │   │   └── types.ts                # TypeScript type definitions
+│   │   ├── index.tsx                   # Application entry point
+│   │   ├── index.html                  # HTML template
+│   │   └── styles.css                  # Global styles
+│   ├── tsconfig.json                   # TypeScript configuration
+│   ├── package.json                    # Frontend dependencies
+│   └── webpack.config.js               # Build configuration
+│
+├── abi/                                # Contract Application Binary Interface
+│   └── ElectronicSignature.json        # ABI for the main contract
+│
+├── scripts/                            # Deployment scripts
+│   ├── declarecontract.sh              # Script to declare contract
+│   ├── deploycontract.sh               # Script to deploy contract
+│   └── generate_abi.sh                 # Script to generate ABI
+│
+├── Scarb.toml                          # Cairo project configuration
+├── snfoundry.toml                      # StarkNet Foundry configuration
+├── package.json                        # Root package dependencies
+└── README.md                           # Project documentation
 ```
 
-## Setup
+## Getting Started
 
 ### Prerequisites
 
-- Node.js 16+
-- StarkNet wallet (like ArgentX or Braavos) for browser client
-- Access to a StarkNet node (or use a public RPC provider)
-- Scarb (Cairo package manager) for smart contract development
+- Node.js 16+ 
+- Scarb (Cairo package manager)
+- StarkNet wallet (ArgentX or Braavos) 
+- Access to a StarkNet node (Infura, Alchemy, or other RPC provider)
 
 ### Smart Contract Development
 
 ```bash
-# Install Scarb (if not already installed)
+# Install Scarb
 curl --proto '=https' --tlsv1.2 -sSf https://docs.swmansion.com/scarb/install.sh | sh
 
-# Compile the contract
+# Build the Cairo contracts
 scarb build
 
-# Run tests
+# Run contract tests
 scarb test
 
-# Generate ABI
+# Generate contract ABI
 ./generate_abi.sh
 ```
 
 ### Frontend Development
 
 ```bash
+# Navigate to frontend directory
+cd frontend
+
 # Install dependencies
 npm install
 
-# Build the project
-npm run build
+# Start development server
+npm run dev
 
-# Start the development server
-npm run start
+# Build for production
+npm run build
 ```
 
-### Contract Deployment
-
-The contract can be deployed to StarkNet using Starknet Foundry and the provided scripts:
+### Deploying the Contract
 
 ```bash
-# Declare the contract
+# Declare contract (makes it available on StarkNet)
 ./declarecontract.sh
 
-# Deploy the contract
+# Deploy an instance of the contract
 ./deploycontract.sh
 ```
 
-## Browser Client Usage
+## Using the Application
 
-1. Open the application in your browser
-2. Connect your StarkNet wallet (ArgentX or Braavos)
-3. Select a PDF file to sign
-4. Choose a signature level (SES, AES, QES)
-5. Submit the transaction with your wallet
-6. View and save the signature details
+### Signing a Document
 
-The browser client uses version 5.14.1 of the Starknet.js library for better wallet compatibility.
+1. Visit the application and connect your StarkNet wallet
+2. Navigate to the "Sign Document" tab
+3. Upload a PDF document
+4. Select the signature security level (SES, AES, or QES)
+5. Confirm the transaction in your wallet
+6. Save the returned document ID for future verification
 
-## Node.js Client Usage
+### Verifying a Signature
 
-```typescript
-import { signPdfWithStarknet } from './frontend/pdf_sign';
-
-// Sign a document
-const result = await signPdfWithStarknet(
-  '/path/to/document.pdf',
-  'SES',  // Signature level: SES, AES, or QES
-  31536000  // Validity period in seconds (1 year)
-);
-
-console.log('Document ID:', result.document_id);
-console.log('Transaction hash:', result.transaction_hash);
-```
-
-The Node.js client uses version 6.23.1 of the Starknet.js library for server-side signing.
+1. Navigate to the "Verify Signature" tab
+2. Upload the previously signed PDF document
+3. Enter the document ID and signer's address
+4. Click "Verify Signature"
+5. View the verification results showing signature status and details
 
 ## Technical Details
 
-### Smart Contract
+### Document Signing Process
 
-The smart contract implements the IElectronicSignature interface and provides the following functions:
+1. The document is hashed client-side using SHA-256
+2. A unique document ID is generated on-chain based on multiple factors
+3. The document hash, signer address, signature level, and expiration time are stored on-chain
+4. A blockchain transaction is created and signed by the user's wallet
+5. The smart contract emits a DocumentSigned event
 
-- `sign_document`: Creates a cryptographic signature for a document
-- `verify_document_signature`: Verifies if a document signature is valid
-- `revoke_signature`: Revokes a previously created signature
-- `get_signature`: Retrieves a stored signature record
-- `hash_typed_data`: Creates a cryptographic hash of typed data for external verification
-- `is_signature_expired`: Checks if a signature has expired
+### Signature Verification
 
-### Document Hashing
+1. The document is hashed client-side using the same algorithm
+2. The smart contract retrieves the stored signature data using the document ID
+3. The contract verifies:
+   - The stored hash matches the provided document hash
+   - The signature has not expired
+   - The signature has not been revoked
+4. Verification results are returned to the user
 
-Documents are hashed using SHA-256 in the client, and the hash is stored on-chain. This ensures:
+## Contract Address
 
-1. Document contents aren't stored on-chain (for privacy)
-2. Documents can be verified without uploading the original again
-3. Any modifications to the document will invalidate the signature
-
-### Security Considerations
-
-- Document IDs are automatically generated to ensure uniqueness
-- Multiple signature security levels (QES, AES, SES) for different use cases
-- Signatures include expiration times to prevent indefinite validity
-- Signatures can be revoked by the original signer if needed
-- Domain separation prevents signature replay across different contracts/chains
-
-## Contract Addresses
-
-### Sepolia Testnet
+**Sepolia Testnet**
 ```
 0x0784ba229bb245ebf3322f9cb637d67551afd677fe47aae6ad46ddb3818f7ed7
 ```
 
-## Development and Contributing
-
-To contribute to this project:
+## Contributing
 
 1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/your-feature`)
-3. Make your changes
-4. Run tests to ensure functionality
-5. Commit your changes (`git commit -m 'Add some feature'`)
-6. Push to the branch (`git push origin feature/your-feature`)
-7. Create a new Pull Request
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+This project is licensed under the MIT License
