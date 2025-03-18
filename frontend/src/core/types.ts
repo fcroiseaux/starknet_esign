@@ -27,6 +27,9 @@ export interface VerificationResult {
     expiration?: Date;
     isRevoked?: boolean;
   };
+  // Flag to indicate verification was done in offline mode
+  // This means blockchain verification was not possible
+  offlineMode?: boolean;
 }
 
 /**

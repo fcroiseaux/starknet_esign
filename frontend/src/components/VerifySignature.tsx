@@ -89,28 +89,23 @@ const VerifySignature: React.FC = () => {
       // Create a helpful error message
       let errorMessage = `Error verifying signature: ${error instanceof Error ? error.message : String(error)}`;
       
-      // Check for common issues
-      if (errorMessage.includes("token") || errorMessage.includes("401") || errorMessage.includes("API")) {
-        errorMessage = "Network error: The verification service is currently unavailable. Please try again later.";
+      // Check for common issues related to network connectivity
+      if (errorMessage.includes("token") || errorMessage.includes("401") || errorMessage.includes("API") || 
+          errorMessage.includes("network") || errorMessage.includes("provider") || errorMessage.includes("connection")) {
         
-        // Show a mock result for demo purposes
-        setVerificationResult({
-          isValid: false,
-          details: {
-            signatureLevel: "SES",
-            timestamp: new Date(),
-            expiration: new Date(Date.now() + 31536000 * 1000), // 1 year
-            isRevoked: false
-          }
-        });
+        // Clear any partial verification result
+        setVerificationResult(null);
         
-        setStatusMessage("⚠️ DEMO MODE: Network error, showing mock verification. Hash verification indicates signature is invalid.");
+        // Set a clear error message about blockchain connectivity
+        setStatusMessage("Error: Cannot connect to blockchain. Please check your internet connection and try again.");
+        setStatusType('error');
       } else {
+        // For other types of errors
         setStatusMessage(errorMessage);
         setVerificationResult(null);
+        setStatusType('error');
       }
-      
-      setStatusType('error');
+      // Don't overwrite the status type if it was already set in the conditional blocks
     } finally {
       setIsVerifying(false);
     }
@@ -197,6 +192,7 @@ const VerifySignature: React.FC = () => {
       {verificationResult && (
         <div className="card verification-details">
           <h2>Verification Details</h2>
+          
           <div>
             <strong>Signature Valid:</strong> 
             <span className={verificationResult.isValid ? 'valid' : 'invalid'}>

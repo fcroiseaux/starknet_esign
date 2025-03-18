@@ -158,6 +158,10 @@ export async function verifySignature(
   }
 }> {
   console.log(`Verifying signature for document ID: ${documentId}`);
+  console.log(`Signer address: ${signerAddress}`);
+  console.log(`Document hash: ${documentHash}`);
+  console.log(`Contract address: ${contractAddress}`);
+  console.log(`Provider:`, provider);
   
   // Create contract instance
   let contract;
@@ -182,42 +186,9 @@ export async function verifySignature(
           }
         };
       } else {
-        // Fallback implementation using a simulated contract
-        console.log("Using fallback contract implementation");
-        contract = {
-          call: async (method: string, args: any[]) => {
-            // Create a mock verification response
-            if (method === "verify_document_signature") {
-              // Compare the document hash directly - if documentId matches hash then "valid"
-              // This is just for demonstration - real verification would check blockchain
-              const docId = args[0].toString();
-              const signerAddr = args[1].toString();
-              const docHash = args[2][0].toString();
-              
-              console.log("Fallback verification with:", { docId, signerAddr, docHash });
-              
-              // Demo verification logic - in real implementation this would check on-chain
-              const lastHexDigit = docHash.slice(-1);
-              const isMockValid = parseInt(lastHexDigit, 16) % 2 === 0; // Even hex digit = valid
-              
-              console.log(`Mock verification result (based on hash): ${isMockValid}`);
-              return [isMockValid];
-            } else if (method === "get_signature") {
-              // Return mock signature details
-              return [
-                // Usually returns document_id, document_hash, signer, timestamp, level, is_revoked, expiration
-                "0x0", // document_id
-                "0x0", // document_hash 
-                "0x0", // signer
-                Math.floor(Date.now() / 1000).toString(), // timestamp (now)
-                "0x534553", // SES in hex
-                "0x0", // not revoked
-                (Math.floor(Date.now() / 1000) + 31536000).toString() // expiration (1 year)
-              ];
-            }
-            throw new Error(`Method ${method} not supported in fallback mode`);
-          }
-        };
+        // No fallback implementation - simply throw an error if blockchain connection fails
+        console.log("No blockchain connection available - refusing to provide fallback verification");
+        throw new Error("Cannot connect to blockchain. Please check your internet connection and try again.");
       }
     } catch (err) {
       console.error("Error creating contract interface:", err);
@@ -230,32 +201,47 @@ export async function verifySignature(
     ? (documentId.startsWith('0x') ? BigInt(documentId) : BigInt(parseInt(documentId)))
     : documentId;
   
-  // Call the verification function
-  const result = await contract.call("verify_document_signature", [
-    documentIdBigInt,
-    signerAddress,
-    [documentHash]
-  ]);
+  // Call the verification function with better error handling
+  let result;
+  try {
+    console.log("Calling contract.call with verify_document_signature");
+    console.log("Args:", [documentIdBigInt.toString(), signerAddress, [documentHash.toString()]]);
+    
+    result = await contract.call("verify_document_signature", [
+      documentIdBigInt,
+      signerAddress,
+      [documentHash]
+    ]);
+    
+    console.log("Raw verification result:", result);
+  } catch (error) {
+    console.error("Error calling verify_document_signature:", error);
+    throw new Error(`Blockchain verification failed: ${error instanceof Error ? error.message : String(error)}`);
+  }
   
   // Process result based on StarkNet.js versions
-  const isValid = Array.isArray(result)
-    ? Boolean(result[0])
-    : (result && result.is_valid !== undefined
-      ? Boolean(result.is_valid)
-      : false);
+  const isValid = result;
+      
+  console.log("Processed verification result, isValid:", isValid);
   
   // Try to get additional signature details
   try {
+    console.log("Calling get_signature for additional details");
+    console.log("Args:", [documentIdBigInt.toString(), signerAddress]);
+    
     const signatureDetails = await contract.call("get_signature", [
       documentIdBigInt,
       signerAddress
     ]);
+    
+    console.log("Raw signature details:", signatureDetails);
     
     if (signatureDetails) {
       let details: any = {};
       
       // Parse details based on response format
       if (Array.isArray(signatureDetails)) {
+        console.log("Parsing array signature details format");
         details = {
           signatureLevel: signatureDetails[4] ? hexToString(signatureDetails[4].toString(16)) : undefined,
           timestamp: signatureDetails[3] ? new Date(Number(signatureDetails[3]) * 1000) : undefined,
@@ -263,6 +249,7 @@ export async function verifySignature(
           isRevoked: Boolean(signatureDetails[5])
         };
       } else {
+        console.log("Parsing object signature details format");
         details = {
           signatureLevel: signatureDetails.signature_level ? hexToString(signatureDetails.signature_level.toString(16)) : undefined,
           timestamp: signatureDetails.timestamp ? new Date(Number(signatureDetails.timestamp) * 1000) : undefined,
@@ -271,10 +258,12 @@ export async function verifySignature(
         };
       }
       
+      console.log("Processed signature details:", details);
       return { isValid, details };
     }
   } catch (error) {
     console.error("Error getting signature details:", error);
+    // Continue even if signature details fail - we already have the validation result
   }
   
   // Return basic result if details couldn't be fetched
