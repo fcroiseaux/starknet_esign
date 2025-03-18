@@ -24,6 +24,31 @@ The application consists of three main components:
 2. **Browser Client**: A TypeScript/HTML client for connecting wallets and signing documents in the browser
 3. **Node.js Client**: A TypeScript client for server-side document signing
 
+## Project Structure
+
+```
+starknet_esign/
+├── abi/                    # Contract ABI files
+├── frontend/               # Web interface files
+│   ├── browser-pdf-sign.ts # Browser-specific integration
+│   ├── index.html          # Web user interface
+│   ├── pdf_sign.ts         # Node.js client
+│   ├── src/                # TypeScript source files
+│   │   ├── adapters/       # Platform-specific adapters
+│   │   └── core/           # Core business logic
+│   └── webpack.config.js   # Frontend build configuration
+├── src/                    # Cairo smart contract source code
+│   ├── contracts/          # Main contract implementation
+│   ├── interfaces/         # Contract interfaces
+│   ├── tests/              # Contract tests
+│   └── utils/              # Cairo utilities
+├── Scarb.toml              # Cairo project configuration
+└── scripts/                # Deployment and utility scripts
+    ├── declarecontract.sh  # Declare contract on StarkNet
+    ├── deploycontract.sh   # Deploy contract on StarkNet
+    └── generate_abi.sh     # Generate ABI from compiled contract
+```
+
 ## Setup
 
 ### Prerequisites
@@ -31,44 +56,64 @@ The application consists of three main components:
 - Node.js 16+
 - StarkNet wallet (like ArgentX or Braavos) for browser client
 - Access to a StarkNet node (or use a public RPC provider)
+- Scarb (Cairo package manager) for smart contract development
 
-### Installation
+### Smart Contract Development
 
 ```bash
-# Clone the repository
-git clone https://github.com/yourusername/starknet_esign.git
-cd starknet_esign
+# Install Scarb (if not already installed)
+curl --proto '=https' --tlsv1.2 -sSf https://docs.swmansion.com/scarb/install.sh | sh
 
+# Compile the contract
+scarb build
+
+# Run tests
+scarb test
+
+# Generate ABI
+./generate_abi.sh
+```
+
+### Frontend Development
+
+```bash
 # Install dependencies
 npm install
 
 # Build the project
 npm run build
+
+# Start the development server
+npm run start
 ```
 
-### Running
+### Contract Deployment
+
+The contract can be deployed to StarkNet using Starknet Foundry and the provided scripts:
 
 ```bash
-# Run the development server
-npm run start
+# Declare the contract
+./declarecontract.sh
 
-# Using the Node.js client
-ts-node pdf_sign.ts /path/to/your/document.pdf [SES|AES|QES] [validity_period_in_seconds]
+# Deploy the contract
+./deploycontract.sh
 ```
 
 ## Browser Client Usage
 
 1. Open the application in your browser
-2. Connect your StarkNet wallet
+2. Connect your StarkNet wallet (ArgentX or Braavos)
 3. Select a PDF file to sign
 4. Choose a signature level (SES, AES, QES)
 5. Submit the transaction with your wallet
 6. View and save the signature details
 
+The browser client uses version 5.14.1 of the Starknet.js library for better wallet compatibility.
+
 ## Node.js Client Usage
 
 ```typescript
-import { signPdfWithStarknet } from './pdf_sign';
+import { signPdfWithStarknet } from './frontend/pdf_sign';
 
 // Sign a document
 const result = await signPdfWithStarknet(
@@ -80,6 +125,8 @@ const result = await signPdfWithStarknet(
 console.log('Document ID:', result.document_id);
 console.log('Transaction hash:', result.transaction_hash);
 ```
+
+The Node.js client uses version 6.23.1 of the Starknet.js library for server-side signing.
 
 ## Technical Details
 
@@ -110,13 +157,24 @@ Documents are hashed using SHA-256 in the client, and the hash is stored on-chai
 - Signatures can be revoked by the original signer if needed
 - Domain separation prevents signature replay across different contracts/chains
 
-## Contract Address
+## Contract Addresses
 
-The contract is deployed on StarkNet Sepolia testnet at:
-
+### Sepolia Testnet
 ```
 0x0784ba229bb245ebf3322f9cb637d67551afd677fe47aae6ad46ddb3818f7ed7
 ```
+
+## Development and Contributing
+
+To contribute to this project:
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/your-feature`)
+3. Make your changes
+4. Run tests to ensure functionality
+5. Commit your changes (`git commit -m 'Add some feature'`)
+6. Push to the branch (`git push origin feature/your-feature`)
+7. Create a new Pull Request
 
 ## License
 

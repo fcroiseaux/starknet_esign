@@ -4,8 +4,8 @@
   "description": "Sign PDFs with Starknet addresses",
   "main": "dist/pdf_sign.js",
   "scripts": {
-    "build": "tsc && webpack",
-    "start": "webpack serve --open",
+    "build": "tsc && cd frontend && webpack",
+    "start": "cd frontend && webpack serve --open",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "dependencies": {

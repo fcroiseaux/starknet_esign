@@ -35,7 +35,7 @@ const CONFIG = {
   DEFAULT_VALIDITY_PERIOD: CONTRACT_CONFIG.defaultValidityPeriod,
   
   // Path to ABI file
-  ABI_PATH: '/abi/ElectronicSignature.json'
+  ABI_PATH: '../abi/ElectronicSignature.json'
 };
 
 /**

@@ -12,6 +12,6 @@
     "resolveJsonModule": true,
     "allowSyntheticDefaultImports": true
   },
-  "include": ["*.ts"],
+  "include": ["frontend/*.ts", "frontend/**/*.ts"],
   "exclude": ["node_modules"]
 }

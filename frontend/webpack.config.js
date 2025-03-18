@@ -33,7 +33,7 @@ module.exports = {
   },
   output: {
     filename: '[name].js',
-    path: path.resolve(__dirname, 'dist'),
+    path: path.resolve(__dirname, '../dist'),
     library: {
       type: 'module'
     }
@@ -50,9 +50,14 @@ module.exports = {
     }),
   ],
   devServer: {
-    static: {
-      directory: path.join(__dirname, './'),
-    },
+    static: [
+      {
+        directory: path.join(__dirname, '../'),
+      },
+      {
+        directory: path.join(__dirname, './'),
+      }
+    ],
     compress: true,
     port: 9000,
   }

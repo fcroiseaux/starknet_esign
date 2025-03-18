@@ -1,0 +1,24 @@
+[package]
+name = "starknet_esign"
+version = "1.0.0"
+edition = "2024_07" # Using a simpler, well-tested Cairo edition
+
+# See more keys and their definitions at https://docs.swmansion.com/scarb/docs/reference/manifest.html
+
+[dependencies]
+starknet = "2.11.2"
+openzeppelin = "1.0.0"
+
+[dev-dependencies]
+#cairo_test = "2.9.2"
+snforge_std = "0.38.3"
+assert_macros = "2.11.2"
+
+[[target.starknet-contract]]
+sierra = true
+
+[scripts]
+test = "snforge test"
+
+[tool.scarb]
+allow-prebuilt-plugins = ["snforge_std"]
