@@ -8,6 +8,16 @@
     <script src="https://cdn.jsdelivr.net/npm/starknet@5.14.1/dist/starknet.js"></script>
     <!-- Note: Keeping version 5.14.1 for browser as it's more compatible with wallets -->
     <script>
+        // Apply saved theme preference early to prevent flash of wrong theme
+        (function() {
+            const savedTheme = localStorage.getItem('theme');
+            if (savedTheme === 'dark') {
+                document.documentElement.setAttribute('data-theme', 'dark');
+            } else if (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+                document.documentElement.setAttribute('data-theme', 'dark');
+            }
+        })();
+    
         // Simple check to ensure starknet.js loaded correctly
         window.addEventListener('load', function() {
             console.log('Window loaded, checking if starknet.js is available...');
