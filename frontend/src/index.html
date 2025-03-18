@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StarkNet PDF Signature</title>
+    <!-- Load Starknet.js -->
+    <script src="https://cdn.jsdelivr.net/npm/starknet@5.14.1/dist/starknet.js"></script>
+    <!-- Note: Keeping version 5.14.1 for browser as it's more compatible with wallets -->
+    <script>
+        // Simple check to ensure starknet.js loaded correctly
+        window.addEventListener('load', function() {
+            console.log('Window loaded, checking if starknet.js is available...');
+            if (window.starknet) {
+                console.log('✅ starknet.js loaded successfully!');
+                
+                // Add a global function to check starknet.js status that can be called from console
+                window.checkStarknetStatus = function() {
+                    console.log('StarkNet object:', window.starknet);
+                    console.log('StarkNet version:', window.starknet?.version);
+                    console.log('StarkNet methods:', Object.keys(window.starknet || {}).join(', '));
+                    console.log('StarkNet has enable?', typeof window.starknet?.enable === 'function');
+                    console.log('StarkNet has RpcProvider?', !!window.starknet?.RpcProvider);
+                    return window.starknet ? 'StarkNet is loaded' : 'StarkNet is NOT loaded';
+                };
+                
+                // Run the check automatically
+                window.checkStarknetStatus();
+            } else {
+                console.error('❌ starknet.js did not load correctly!');
+            }
+        });
+    </script>
+</head>
+<body>
+    <div id="root"></div>
+</body>
+</html>

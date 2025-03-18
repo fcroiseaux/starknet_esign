@@ -1,23 +1,38 @@
 const path = require('path');
 const webpack = require('webpack');
+const HtmlWebpackPlugin = require('html-webpack-plugin');
 
 module.exports = {
   mode: 'development',
   entry: {
-    'pdf_sign': './pdf_sign.ts',
-    'browser-pdf-sign': './browser-pdf-sign.ts'
+    'app': './src/index.tsx'
   },
   module: {
     rules: [
       {
-        test: /\.tsx?$/,
-        use: 'ts-loader',
+        test: /\.(ts|tsx)$/,
         exclude: /node_modules/,
+        use: [
+          {
+            loader: 'babel-loader',
+            options: {
+              presets: [
+                '@babel/preset-env',
+                '@babel/preset-react',
+                '@babel/preset-typescript'
+              ]
+            }
+          }
+        ]
       },
+      {
+        test: /\.css$/,
+        use: ['style-loader', 'css-loader']
+      }
     ],
   },
   resolve: {
-    extensions: ['.tsx', '.ts', '.js'],
+    extensions: ['.tsx', '.ts', '.js', '.jsx'],
     fallback: {
       "fs": false,
       "path": require.resolve("path-browserify"),
@@ -32,16 +47,15 @@ module.exports = {
     }
   },
   output: {
-    filename: '[name].js',
+    filename: '[name].bundle.js',
     path: path.resolve(__dirname, '../dist'),
-    library: {
-      type: 'module'
-    }
-  },
-  experiments: {
-    outputModule: true
+    clean: true
   },
   plugins: [
+    new HtmlWebpackPlugin({
+      template: './src/index.html',
+      filename: 'index.html'
+    }),
     new webpack.ProvidePlugin({
       Buffer: ['buffer', 'Buffer'],
     }),
@@ -60,5 +74,6 @@ module.exports = {
     ],
     compress: true,
     port: 9000,
+    hot: true
   }
 };

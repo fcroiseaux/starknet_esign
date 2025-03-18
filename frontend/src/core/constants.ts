@@ -23,7 +23,7 @@ export const DEFAULT_VALIDITY_PERIOD = 31536000;
 /**
  * Maximum felt252 value (2^251 - 1)
  */
-export const MAX_FELT_VALUE = BigInt(2) ** BigInt(251) - BigInt(1);
+export const MAX_FELT_VALUE = BigInt('0x800000000000000000000000000000000000000000000000000000000000000') - BigInt(1);
 
 /**
  * Contract configuration for different environments

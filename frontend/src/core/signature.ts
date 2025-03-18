@@ -40,13 +40,25 @@ export async function signDocument(
     }
     
     // Check for various known wallet structures
-    const hasInvoke = typeof account.invoke === 'function';
-    const hasExecute = typeof account.execute === 'function';
-    const hasExecuteFunction = typeof account.executeFunction === 'function';
-    const hasAccount = account.account !== undefined;
-    const accountHasInvoke = hasAccount && typeof account.account.invoke === 'function';
-    const accountHasExecute = hasAccount && typeof account.account.execute === 'function';
-    const hasSignAndExecuteTransactions = typeof account.signAndExecuteTransactions === 'function';
+    // Account could be an array for ArgentX format
+    let adaptedAccount = account;
+    
+    // If account is an array (ArgentX), use window.starknet.account
+    if (Array.isArray(account) && account.length > 0) {
+      console.log("Detected array format wallet (ArgentX), adapting account structure");
+      if (window.starknet && window.starknet.account) {
+        adaptedAccount = window.starknet.account;
+        console.log("Using window.starknet.account for array wallet");
+      }
+    }
+    
+    const hasInvoke = typeof adaptedAccount.invoke === 'function';
+    const hasExecute = typeof adaptedAccount.execute === 'function';
+    const hasExecuteFunction = typeof adaptedAccount.executeFunction === 'function';
+    const hasAccount = adaptedAccount.account !== undefined;
+    const accountHasInvoke = hasAccount && typeof adaptedAccount.account.invoke === 'function';
+    const accountHasExecute = hasAccount && typeof adaptedAccount.account.execute === 'function';
+    const hasSignAndExecuteTransactions = typeof adaptedAccount.signAndExecuteTransactions === 'function';
     
     console.log(`Wallet capabilities: `, {
       hasInvoke,
@@ -62,10 +74,36 @@ export async function signDocument(
       let signResult;
       const calldata = [documentData, sigLevelValue, validityPeriod];
       
+      // If account is an array of addresses (ArgentX format)
+      if (Array.isArray(account) && account.length > 0) {
+        console.log("Using window.starknet directly for array wallet format");
+        
+        if (window.starknet && window.starknet.account) {
+          console.log("Using window.starknet.account for signing");
+          try {
+            signResult = await window.starknet.account.execute({
+              contractAddress: contractAddress,
+              entrypoint: "sign_document",
+              calldata: calldata
+            });
+            console.log("window.starknet.account.execute succeeded:", signResult);
+            
+            if (signResult) {
+              console.log("Using adapted account successful");
+              // Skip the other methods since we have a result
+              adaptedAccount = window.starknet.account;
+              account = window.starknet;
+            }
+          } catch (error) {
+            console.error("Error using window.starknet.account:", error);
+          }
+        }
+      }
+      
       // Try all known methods for invoking a contract
 
       // METHOD 1: ArgentX style direct invoke
-      if (hasInvoke) {
+      if (!signResult && hasInvoke) {
         console.log("Using wallet's direct invoke method");
         try {
           signResult = await account.invoke({
@@ -327,16 +365,30 @@ export async function signDocument(
       let documentId = signResult.transaction_hash;
       let documentIdFelt: bigint;
       
-      // Check if the result contains the document ID directly
-      if (signResult.document_id) {
-        console.log(`Found document_id in transaction result: ${signResult.document_id}`);
-        documentId = signResult.document_id;
-        documentIdFelt = BigInt(documentId);
-      } else {
-        // Extract document ID from transaction receipt
-        const extracted = extractDocumentId(receipt, signResult.transaction_hash);
-        documentId = extracted.documentId;
-        documentIdFelt = extracted.documentIdFelt;
+      try {
+        // Check if the result contains the document ID directly
+        if (signResult.document_id) {
+          console.log(`Found document_id in transaction result: ${signResult.document_id}`);
+          documentId = signResult.document_id;
+          documentIdFelt = BigInt(documentId);
+        } else {
+          // Extract document ID from transaction receipt
+          const extracted = extractDocumentId(receipt, signResult.transaction_hash);
+          documentId = extracted.documentId;
+          documentIdFelt = extracted.documentIdFelt;
+        }
+      } catch (error) {
+        // If any error occurs during document ID extraction, use a fallback
+        console.warn("Error processing document ID, using transaction hash as document ID:", error);
+        documentId = signResult.transaction_hash;
+        
+        // Create a deterministic ID from the transaction hash
+        try {
+          documentIdFelt = BigInt(documentId);
+        } catch {
+          // If we can't convert directly, use a simple number
+          documentIdFelt = BigInt(Date.now());
+        }
       }
       
       // Log extracted document ID
@@ -542,9 +594,21 @@ export function extractDocumentId(
     console.warn("Error extracting document ID from events:", error);
   }
   
-  // If extraction failed, create a deterministic hash of the transaction hash
+  // If extraction failed, use transaction hash directly but in a compatible format
   console.warn("Could not extract document ID from events, using transaction hash as reference");
-  documentIdFelt = createHashFromString(txHash);
+  try {
+    // Try to convert hex transaction hash directly to BigInt
+    if (txHash.startsWith('0x')) {
+      documentIdFelt = BigInt(txHash);
+      console.log(`Converted transaction hash directly to BigInt: ${documentIdFelt}`);
+    } else {
+      // If not a hex string, fall back to hashing
+      documentIdFelt = createHashFromString(txHash);
+    }
+  } catch (error) {
+    console.warn("Error converting transaction hash to BigInt, using hash instead:", error);
+    documentIdFelt = createHashFromString(txHash);
+  }
   
   // Ensure documentId is properly formatted for felt conversion
   if (typeof documentId === 'string' && documentId.startsWith('0x')) {
@@ -573,11 +637,14 @@ export function createHashFromString(input: string): bigint {
     hash |= 0; // Convert to 32bit integer
   }
   
-  // Ensure positive value
-  const positiveHash = BigInt(Math.abs(hash));
+  // Ensure positive value 
+  // Convert hash to BigInt and ensure it's positive
+  const positiveHash = hash < 0 ? BigInt(-hash) : BigInt(hash);
   
-  // Ensure it fits within felt252 range (2^251 - 1)
-  const maxFelt = BigInt(2) ** BigInt(251) - BigInt(1);
+  // Use a simpler constant for StarkNet felt252 max value
+  // This avoids the problematic exponentiation
+  const maxFelt = BigInt("0x7ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
+  
   return positiveHash % maxFelt;
 }
 

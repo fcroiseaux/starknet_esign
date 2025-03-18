@@ -68,6 +68,22 @@ export async function signPdfWithStarknet(
     throw new Error("StarkNet wallet not connected. Please connect your wallet first.");
   }
   
+  // Perform additional checks on the wallet object to ensure it's valid
+  console.log("Wallet for signing:", starknetWallet);
+  
+  // Check if wallet is an empty object or array
+  if (
+    (typeof starknetWallet === 'object' && !Array.isArray(starknetWallet) && Object.keys(starknetWallet).length === 0) ||
+    (Array.isArray(starknetWallet) && starknetWallet.length === 0)
+  ) {
+    throw new Error("StarkNet wallet appears to be empty. Please reconnect your wallet.");
+  }
+  
+  // If wallet is an array with addresses, that's valid for ArgentX
+  if (Array.isArray(starknetWallet) && starknetWallet.length > 0) {
+    console.log("Wallet is an array with addresses, using ArgentX format");
+  }
+  
   try {
     // Calculate document hash
     console.log("Calculating document hash...");

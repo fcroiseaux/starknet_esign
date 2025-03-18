@@ -1,0 +1,250 @@
+:root {
+  --primary-color: #1a73e8;
+  --primary-hover: #1557b0;
+  --secondary-color: #ff5c35;
+  --secondary-hover: #e04722;
+  --gray-light: #f5f7fa;
+  --gray-medium: #9aa0a6;
+  --text-color: #333;
+  --success-color: #137333;
+  --success-bg: #e6f4ea;
+  --error-color: #c5221f;
+  --error-bg: #fce8e6;
+  --info-color: #1a73e8;
+  --info-bg: #e8f0fe;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+  margin: 0;
+  padding: 0;
+  line-height: 1.6;
+  color: var(--text-color);
+  background-color: var(--gray-light);
+}
+
+h1, h2, h3 {
+  color: var(--primary-color);
+}
+
+.page-container {
+  display: flex;
+  min-height: 100vh;
+}
+
+.sidebar {
+  width: 250px;
+  background-color: #fff;
+  box-shadow: 2px 0 5px rgba(0, 0, 0, 0.05);
+  padding: 20px;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+}
+
+.main-content {
+  flex: 1;
+  padding: 20px;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.card {
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.form-group {
+  margin-bottom: 15px;
+}
+
+.button-hint {
+  color: var(--error-color);
+  font-size: 14px;
+  margin-top: 5px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.connect-btn-inline {
+  background: var(--secondary-color);
+  font-size: 12px;
+  padding: 4px 8px;
+  margin-left: 8px;
+}
+
+label {
+  display: block;
+  margin-bottom: 5px;
+  font-weight: 500;
+}
+
+input[type="text"], input[type="file"], select {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  box-sizing: border-box;
+}
+
+button {
+  background: var(--primary-color);
+  color: white;
+  border: none;
+  padding: 10px 15px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 16px;
+  transition: background 0.3s;
+}
+
+button:hover {
+  background: var(--primary-hover);
+}
+
+button:disabled {
+  background: var(--gray-medium);
+  cursor: not-allowed;
+}
+
+.status {
+  margin-top: 20px;
+  padding: 15px;
+  border-radius: 4px;
+}
+
+.success {
+  background-color: var(--success-bg);
+  color: var(--success-color);
+}
+
+.error {
+  background-color: var(--error-bg);
+  color: var(--error-color);
+}
+
+.info {
+  background-color: var(--info-bg);
+  color: var(--info-color);
+}
+
+pre {
+  background: #f5f5f5;
+  padding: 10px;
+  border-radius: 4px;
+  overflow-x: auto;
+}
+
+.signature-details {
+  margin-top: 20px;
+}
+
+.loader {
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid var(--primary-color);
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  animation: spin 2s linear infinite;
+  display: inline-block;
+  vertical-align: middle;
+  margin-right: 10px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.wallet-section {
+  margin-bottom: 20px;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 15px;
+}
+
+.wallet-info {
+  display: flex;
+  flex-direction: column;
+  margin-top: 10px;
+}
+
+.wallet-address {
+  font-family: monospace;
+  background: #f5f5f5;
+  padding: 5px 10px;
+  border-radius: 4px;
+  font-size: 14px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  word-break: break-all;
+  margin-bottom: 10px;
+}
+
+.connect-btn {
+  background: var(--secondary-color);
+  width: 100%;
+}
+
+.connect-btn:hover {
+  background: var(--secondary-hover);
+}
+
+.disconnect-btn {
+  background: #757575;
+  width: 100%;
+}
+
+.disconnect-btn:hover {
+  background: #616161;
+}
+
+.wallet-detail-item {
+  margin-bottom: 8px;
+  font-size: 14px;
+}
+
+.wallet-details h3 {
+  margin-top: 0;
+  margin-bottom: 10px;
+  font-size: 16px;
+  color: #555;
+}
+
+.nav-links {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 20px 0;
+}
+
+.nav-links a {
+  color: var(--primary-color);
+  text-decoration: none;
+  padding: 10px;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+.nav-links a:hover {
+  background-color: #f0f7ff;
+}
+
+.nav-links a.active {
+  background-color: #e8f0fe;
+  font-weight: bold;
+}
+
+.logo {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.logo h2 {
+  margin: 0;
+  color: var(--primary-color);
+}
