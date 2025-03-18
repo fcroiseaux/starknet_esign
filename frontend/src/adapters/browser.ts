@@ -158,22 +158,16 @@ export async function verifySignature(
   }
 }> {
   console.log(`Verifying signature for document ID: ${documentId}`);
-  console.log(`Signer address: ${signerAddress}`);
-  console.log(`Document hash: ${documentHash}`);
-  console.log(`Contract address: ${contractAddress}`);
-  console.log(`Provider:`, provider);
   
   // Create contract instance
   let contract;
   
   // Use the starknet.js Contract constructor directly if available
   if (typeof Contract !== 'undefined') {
-    console.log("Using imported Contract constructor");
     contract = new Contract(contractAbi, contractAddress, provider);
   } else {
     // Try with RpcProvider's method
     try {
-      console.log("Using provider.getContract method");
       // Check if provider has callContract method
       if (typeof provider.callContract === 'function') {
         contract = {
@@ -187,7 +181,6 @@ export async function verifySignature(
         };
       } else {
         // No fallback implementation - simply throw an error if blockchain connection fails
-        console.log("No blockchain connection available - refusing to provide fallback verification");
         throw new Error("Cannot connect to blockchain. Please check your internet connection and try again.");
       }
     } catch (err) {
@@ -201,47 +194,38 @@ export async function verifySignature(
     ? (documentId.startsWith('0x') ? BigInt(documentId) : BigInt(parseInt(documentId)))
     : documentId;
   
-  // Call the verification function with better error handling
+  // Call the verification function
   let result;
   try {
-    console.log("Calling contract.call with verify_document_signature");
-    console.log("Args:", [documentIdBigInt.toString(), signerAddress, [documentHash.toString()]]);
-    
     result = await contract.call("verify_document_signature", [
       documentIdBigInt,
       signerAddress,
       [documentHash]
     ]);
-    
-    console.log("Raw verification result:", result);
   } catch (error) {
     console.error("Error calling verify_document_signature:", error);
     throw new Error(`Blockchain verification failed: ${error instanceof Error ? error.message : String(error)}`);
   }
   
   // Process result based on StarkNet.js versions
-  const isValid = result;
-      
-  console.log("Processed verification result, isValid:", isValid);
+  const isValid = Array.isArray(result)
+    ? Boolean(result[0])
+    : (result && result.is_valid !== undefined
+      ? Boolean(result.is_valid)
+      : Boolean(result));
   
   // Try to get additional signature details
   try {
-    console.log("Calling get_signature for additional details");
-    console.log("Args:", [documentIdBigInt.toString(), signerAddress]);
-    
     const signatureDetails = await contract.call("get_signature", [
       documentIdBigInt,
       signerAddress
     ]);
-    
-    console.log("Raw signature details:", signatureDetails);
     
     if (signatureDetails) {
       let details: any = {};
       
       // Parse details based on response format
       if (Array.isArray(signatureDetails)) {
-        console.log("Parsing array signature details format");
         details = {
           signatureLevel: signatureDetails[4] ? hexToString(signatureDetails[4].toString(16)) : undefined,
           timestamp: signatureDetails[3] ? new Date(Number(signatureDetails[3]) * 1000) : undefined,
@@ -249,7 +233,6 @@ export async function verifySignature(
           isRevoked: Boolean(signatureDetails[5])
         };
       } else {
-        console.log("Parsing object signature details format");
         details = {
           signatureLevel: signatureDetails.signature_level ? hexToString(signatureDetails.signature_level.toString(16)) : undefined,
           timestamp: signatureDetails.timestamp ? new Date(Number(signatureDetails.timestamp) * 1000) : undefined,
@@ -258,7 +241,6 @@ export async function verifySignature(
         };
       }
       
-      console.log("Processed signature details:", details);
       return { isValid, details };
     }
   } catch (error) {
