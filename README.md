@@ -5,6 +5,7 @@ An electronic signature platform built on StarkNet that provides document signin
 ## Overview
 
 StarkNet eSign is a decentralized application (dApp) that enables secure document signing and verification using the STARK protocol. The platform implements the constraints required by European eIDAS regulation signature levels, providing a potentially legally compliant framework for electronic signatures with different security levels.
+More information on [STARK](./STARK_Protocol.pdf)
 
 ## Key Features
 
