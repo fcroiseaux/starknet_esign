@@ -1,10 +1,10 @@
 # StarkNet eSign
 
-A blockchain-based electronic signature platform built on StarkNet that provides legally compliant document signing and verification.
+An electronic signature platform built on StarkNet that provides document signing and verification.
 
 ## Overview
 
-StarkNet eSign is a decentralized application (dApp) that enables secure document signing and verification using the StarkNet blockchain. The platform implements the European eIDAS regulation signature levels, providing a legally compliant framework for electronic signatures with different security levels.
+StarkNet eSign is a decentralized application (dApp) that enables secure document signing and verification using the STARK protocol. The platform implements the constraints required by European eIDAS regulation signature levels, providing a potentially legally compliant framework for electronic signatures with different security levels.
 
 ## Key Features
 
@@ -17,7 +17,8 @@ StarkNet eSign is a decentralized application (dApp) that enables secure documen
 - **Multi-Wallet Support**: Compatible with ArgentX and Braavos StarkNet wallets
 - **Signature Lifecycle Management**: Includes expiration dates and revocation capabilities
 - **Tamper Detection**: Cryptographic verification that documents haven't been modified
-- **Modern React UI**: User-friendly interface for signing and verifying documents
+- **Modern React UI**: User-friendly interface with dark/light mode for signing and verifying documents
+- **Quantum Resistance**: Signatures generated using the STARK protocol are quantum-resistant because their security relies solely on cryptographic hash functions, which are widely considered robust against quantum attacks.
 
 ## Architecture
 
@@ -58,12 +59,14 @@ starknet_esign/
 │   │   ├── components/                 # React components
 │   │   │   ├── App.tsx                 # Main application component
 │   │   │   ├── SignatureForm.tsx       # Document signing form
+│   │   │   ├── ThemeToggle.tsx         # Dark/light mode toggle component
 │   │   │   ├── VerifySignature.tsx     # Signature verification component
 │   │   │   └── WalletConnection.tsx    # Wallet connection component
 │   │   ├── services/                   # Service layer
 │   │   │   ├── signatureService.ts     # Signature operations service
 │   │   │   └── walletService.ts        # Wallet management service
 │   │   ├── hooks/                      # Custom React hooks
+│   │   │   ├── useTheme.tsx            # Theme management hook
 │   │   │   └── useWallet.ts            # Wallet state management hook
 │   │   ├── adapters/                   # Platform adapters
 │   │   │   ├── browser.ts              # Browser-specific implementations
@@ -82,10 +85,9 @@ starknet_esign/
 ├── abi/                                # Contract Application Binary Interface
 │   └── ElectronicSignature.json        # ABI for the main contract
 │
-├── scripts/                            # Deployment scripts
-│   ├── declarecontract.sh              # Script to declare contract
-│   ├── deploycontract.sh               # Script to deploy contract
-│   └── generate_abi.sh                 # Script to generate ABI
+├── declarecontract.sh                  # Script to declare contract
+├── deploycontract.sh                   # Script to deploy contract
+├── generate_abi.sh                     # Script to generate ABI
 │
 ├── Scarb.toml                          # Cairo project configuration
 ├── snfoundry.toml                      # StarkNet Foundry configuration
